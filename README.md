@@ -18,3 +18,8 @@ Outline:
   - what to look for
 - test dataset and scripts
   
+  
+  
+ToDo:
+- user option to customize initial guess and MCMC bounds/priors
+- user option to load previous datasets
