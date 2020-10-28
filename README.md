@@ -23,3 +23,5 @@ Outline:
 ToDo:
 - user option to customize initial guess and MCMC bounds/priors
 - user option to load previous datasets
+
+Link to MCMCStat: https://github.com/mjlaine/mcmcstat
