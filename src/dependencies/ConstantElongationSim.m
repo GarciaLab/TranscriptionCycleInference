@@ -21,13 +21,16 @@ function x = ConstantElongationSim(v,ton,R,t)
 %The inputs are:
 %   v: elongation rate (the drift term) (scalar, units of bp/time)
 %   ton: time on of initation (no loading allowed before this time)
-%   R: loading rate of Pol II at each timepoint (1x(m-1) vector, where m is the number of timepoints)
+%   R: loading rate of Pol II at each timepoint (1xm vector, where m is the number of timepoints)
 %   t: timepoints of simulation (1xm vector, units of time)
 
 %The output is:
 %   x: position of each Pol II molecule as a function of time (mxn matrix)
 
 %% Initialize variables
+
+%Remove the last timepoint in the initiation rate for data handling
+R = R(1:end-1);
 
 %If there are any negative rates, make them zero.
 R(R<0) = 0;

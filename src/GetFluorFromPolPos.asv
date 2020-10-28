@@ -30,18 +30,18 @@ if strcmp(construct,'P2P-MS2v5-LacZ-PP7v4')
     PP7 = 0;
 %Define your own custom construct by modifying the above values and
 %changing the appropriate values (see template below)
-%    L_MS2 = <LENGTH OF REPORTER GENE>+tau*v; %Length in kb of construct (incorporating dwell time)
-%    L_PP7 = <LENGTH OF REPORTER GENE>+tau*v; %Length in kb of construct (incorporating dwell time)
-%    MS2_start = <POSITION OF START OF MS2 LOOPS>; %Position of start of MS2 loops
-%    MS2_end = <POSITION OF END OF MS2 LOOPS>; %Position of end of MS2 loops
-%    PP7_start = <POSITION OF START OF PP7 LOOPS>; %Position of start of PP7 loops
-%    PP7_end = <POSITION OF END OF PP7 LOOPS>; %Position of end of PP7 loops
-%    
-%    MS2_loopn = <NUMBER OF MS2 LOOPS>; %Number of MS2 loops
-%    PP7_loopn = <NUMBER OF PP7 LOOPS>; %Number of PP7 loops
-%    
-%    MS2 = 0;
-%    PP7 = 0;
+    L_MS2 = 6.626+tau*v; %Length in kb of construct (incorporating dwell time)
+    L_PP7 = 6.626+tau*v; %Length in kb of construct (incorporating dwell time)
+    MS2_start = 0.024; %Position of start of MS2 loops
+    MS2_end = 1.299; %Position of end of MS2 loops
+    PP7_start = 4.292; %Position of start of PP7 loops
+    PP7_end = 5.758; %Position of end of PP7 loops
+    
+    MS2_loopn = 24; %Number of MS2 loops
+    PP7_loopn = 24; %Number of PP7 loops
+    
+    MS2 = 0;
+    PP7 = 0;
 end
 %Calculate MS2 signal by making a fluorescence map
 for i = 1:length(MS2_start)
@@ -52,6 +52,20 @@ for i = 1:length(MS2_start)
     MS2map(frac_ind) = (PolPos(frac_ind) - MS2_start(i)).*MS2_fluorval./(MS2_end(i) - MS2_start(i));
 
     MS2 = MS2 + sum(MS2map,2)';
+    
+    %Termination rate
+    MS2term = zeros(size(PolPos)); %Fluorescence map containing Pol II's that are past end of gene.
+    
+    %For each Pol II that is part the end of gene, remove its fluorescence
+    %at the termination rate. That is: F_remove = r_termination * t_past,
+    %where t_past is the time it has spent past the end of gene, calculated
+    %by dividing the length past the end of gene by the elongation rate.
+    IndPastL = find(PolPos > L_MS2); %Indices of Pol II past end of gene.
+    MS2term(IndPastL) = MS2_fluorval - r_termination * (PolPos(IndPastL) - L_MS2)./v;
+    MS2term(MS2term < 0) = 0; %Replace negative fluorescences with zero.
+    
+    %Add this fluorescence to the overall MS2 signal
+    MS2 = MS2 + sum(MS2term,2)';
     
     %Basal activity
     MS2(MS2<MS2_basal) = MS2_basal;
@@ -65,8 +79,23 @@ for i = 1:length(MS2_start)
 
     PP7 = PP7 + sum(PP7map,2)';
     
+    %Termination rate
+    PP7term = zeros(size(PolPos)); %Fluorescence map containing Pol II's that are past end of gene.
+    
+    %For each Pol II that is part the end of gene, remove its fluorescence
+    %at the termination rate. That is: F_remove = r_termination * t_past,
+    %where t_past is the time it has spent past the end of gene, calculated
+    %by dividing the length past the end of gene by the elongation rate.
+    IndPastL = find(PolPos > L_PP7); %Indices of Pol II past end of gene.
+    PP7term(IndPastL) = PP7_fluorval - r_termination * (PolPos(IndPastL) - L_PP7)./v;
+    PP7term(PP7term < 0) = 0; %Replace negative fluorescences with zero.
+    
+    %Add this fluorescence to the overall MS2 signal
+    PP7 = PP7 + sum(PP7term,2)';
+    
     %Basal activity
     PP7(PP7<PP7_basal) = PP7_basal;
+
 end
     
 end
