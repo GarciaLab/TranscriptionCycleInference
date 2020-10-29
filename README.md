@@ -32,10 +32,11 @@ The necessary scripts to run can be found in the \src folder. The primary script
 # Guide to MCMC fitting
 For more details on the MCMC approach, refer to Section S3 of Liu et. al. (2020). To run an MCMC fit, TranscriptionCycleMCMC.m must be executed on a dataset, which must be saved as a MATLAB .mat file. The required data format is as follows:
 
-- there must be a structure array named <code>data</code>
-
-Data format:
-
+- there must be a structure array named <code>data</code>. Each index of <code>data</code> corresponds to a single cell of fluorescent data. Each index (i.e. single cell) of <code>data</code> must have four fields:
+  - <code>time</code>: a 1 x N vector of time points of experimental acquisition
+  - <code>MS2</code>: a 1 x N vector of MS2 fluorescent signals
+  - <code>PP7</code>: a 1 x N vector of PP7 fluorescent signals
+  - <code>name</code>: a string used to label this dataset
 Input descriptions:
 %   'fileDir', fileDir: directory of dataset files (default = root
 %   directory)
