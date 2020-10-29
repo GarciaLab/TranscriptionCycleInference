@@ -39,38 +39,19 @@ For more details on the MCMC approach, refer to Section S3 of Liu et. al. (2020)
   
 TranscriptionCycleMCMC.m loads one or more datasets with this format and runs the MCMC inference procedure on them. To customize the fitting, the below variable arguments can be passed in:
 
-- 'fileDir', str: directory of where to search for dataset files (default is current working directory)
-- 'saveLoc', str: directory of where to save MCMC fit results (default is current working directory0
+- 'fileDir', string: directory of where to search for dataset files (default is current working directory)
+- 'saveLoc', string: directory of where to save MCMC fit results (default is current working directory0
 - 'numParPools', int: number of parallel pool workers to use (default = 0)
 - 'n_burn', int: number of burn-in steps for MCMC algorithm (default = 10000)
 - 'n_steps', int: number of steps in MCMC algorithm including burn-in (Default = 200000)
-- 'ratePriorWidth', float: standard deviation of Gaussian prior for rate fluctuation term $\delta R(t)$
-
-   'fileDir', fileDir: directory of dataset files (default = root
-   directory)
-   'saveLoc', saveLoc: directory of saved MCMC results (default = root
-   directory)
-   'numParPools', numParPools: number of parallel workers to use (default
-   = 0)
-   'n_burn', n_burn: number of burn-in steps in MCMC algorithm (default = 10000)
-   'n_steps', n_steps: number of steps in MCMC algorithm including burn-in (default =
-   20000)
-   'ratePriorWidth', ratePriorWidth: standard deviation of Gaussian prior
-   for rate fluctuation term dR(t) (default = 50, see Liu et al, Section S3.1) 
-   't_start', t_start: time value to start fit at (default = 0)
-   't_end', t_end: time value to end fit at (default = Inf)
-   'loadPrevious', true/false: option to load previous inference results
-  to retain inferred elongation rate for hierarchical fit (see Liu et al,
-   Section S3.2
-   'construct', construct: option to specify a custom reporter gene that
-   must be defined in the subfunction GetFluorFromPolPos (default uses the
-   P2P-MS2-lacZ-PP7 construct from Liu et al)
-
-
-Customization:
-
+- 'ratePriorWidth', float: standard deviation of Gaussian prior for rate fluctuation term dR(t) (default = 50, see Section S3.1)
+- 't_start', float: time value to start fit at (default = 0)
+- 't_end', float: time value to end fit at (default = 0)
+- 'loadPrevious', true/false: option to load previous inference results to retain inferred elongation rate for hierarchical fit (see Section S3.2, default = false)
+- 'construct', string: option to specify a custom reporter gene that must be defined in the script GetFluorFromPolPos.m (default uses the P2P-MS2-lacZ-PP7 construct from Liu et. al. 2020)
 
 # How to define custom reporter constructs
+To use a different reporter gene than the P2P-MS2-lacZ-PP7 construct in Liu et. al. 2020, simply define a construct in the header of GetFluorFromPolPos.m. There is a template provided in the comments, where you can edit the positions of the MS2 and PP7 stem loop sequences as well as the number of stem loops per sequence. Make sure to define your reporter gene with a label, which you then pass as an argument into TranscriptionCycleMCMC.m with the variable argument 'construct'.
 
 # Approving results
 # Example using test data
