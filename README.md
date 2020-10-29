@@ -30,33 +30,41 @@ This repository contains the MATLAB code necessary to run the Markov Chain Monte
 The necessary scripts to run can be found in the \src folder. The primary script is TranscriptionCycleMCMC.m, which contains the master code that handles the MCMC fits. GetFluorFromPolPos.m contains the information on the reporter constructs needed to calculate fluorescent signals from the transcription cycle model, and should be modified to incorporate the reporter construct used by the user. ApproveMCMCResults.m is a manual curation script that can be used to visualized fit results and approve/reject them. The \src\dependencies folder contains sub-functions that are necessary, but should not be altered by the user.
 
 # Guide to MCMC fitting
-For more details on the MCMC approach, refer to Section S3 of Liu et. al. (2020). To run an MCMC fit, TranscriptionCycleMCMC.m must be executed on a dataset, which must be saved as a MATLAB .mat file. The required data format is as follows:
+For more details on the MCMC approach, refer to Section S3 of Liu et. al. (2020). To run an MCMC fit, TranscriptionCycleMCMC.m must be executed on a dataset, which must be saved as a MATLAB .mat file. The required data format for each dataset is as follows: there must be a structure array named <code>data</code>. Each index of <code>data</code> corresponds to a single cell of fluorescent data. Each index (i.e. single cell) of <code>data</code> must have four fields:
 
-- there must be a structure array named <code>data</code>. Each index of <code>data</code> corresponds to a single cell of fluorescent data. Each index (i.e. single cell) of <code>data</code> must have four fields:
-  - <code>time</code>: a 1 x N vector of time points of experimental acquisition
-  - <code>MS2</code>: a 1 x N vector of MS2 fluorescent signals
-  - <code>PP7</code>: a 1 x N vector of PP7 fluorescent signals
-  - <code>name</code>: a string used to label this dataset
-Input descriptions:
-%   'fileDir', fileDir: directory of dataset files (default = root
-%   directory)
-%   'saveLoc', saveLoc: directory of saved MCMC results (default = root
-%   directory)
-%   'numParPools', numParPools: number of parallel workers to use (default
-%   = 0)
-%   'n_burn', n_burn: number of burn-in steps in MCMC algorithm (default = 10000)
-%   'n_steps', n_steps: number of steps in MCMC algorithm including burn-in (default =
-%   20000)
-%   'ratePriorWidth', ratePriorWidth: standard deviation of Gaussian prior
-%   for rate fluctuation term dR(t) (default = 50, see Liu et al, Section S3.1) 
-%   't_start', t_start: time value to start fit at (default = 0)
-%   't_end', t_end: time value to end fit at (default = Inf)
-%   'loadPrevious', true/false: option to load previous inference results
-%   to retain inferred elongation rate for hierarchical fit (see Liu et al,
-%   Section S3.2
-%   'construct', construct: option to specify a custom reporter gene that
-%   must be defined in the subfunction GetFluorFromPolPos (default uses the
-%   P2P-MS2-lacZ-PP7 construct from Liu et al)
+- <code>time</code>: a 1 x N vector of time points of experimental acquisition
+- <code>MS2</code>: a 1 x N vector of MS2 fluorescent signals
+- <code>PP7</code>: a 1 x N vector of PP7 fluorescent signals
+- <code>name</code>: a string used to label this dataset
+  
+TranscriptionCycleMCMC.m loads one or more datasets with this format and runs the MCMC inference procedure on them. To customize the fitting, the below variable arguments can be passed in:
+
+- 'fileDir', str: directory of where to search for dataset files (default is current working directory)
+- 'saveLoc', str: directory of where to save MCMC fit results (default is current working directory0
+- 'numParPools', int: number of parallel pool workers to use (default = 0)
+- 'n_burn', int: number of burn-in steps for MCMC algorithm (default = 10000)
+- 'n_steps', int: number of steps in MCMC algorithm including burn-in (Default = 200000)
+- 'ratePriorWidth', float: standard deviation of Gaussian prior for rate fluctuation term $\delta R(t)$
+
+   'fileDir', fileDir: directory of dataset files (default = root
+   directory)
+   'saveLoc', saveLoc: directory of saved MCMC results (default = root
+   directory)
+   'numParPools', numParPools: number of parallel workers to use (default
+   = 0)
+   'n_burn', n_burn: number of burn-in steps in MCMC algorithm (default = 10000)
+   'n_steps', n_steps: number of steps in MCMC algorithm including burn-in (default =
+   20000)
+   'ratePriorWidth', ratePriorWidth: standard deviation of Gaussian prior
+   for rate fluctuation term dR(t) (default = 50, see Liu et al, Section S3.1) 
+   't_start', t_start: time value to start fit at (default = 0)
+   't_end', t_end: time value to end fit at (default = Inf)
+   'loadPrevious', true/false: option to load previous inference results
+  to retain inferred elongation rate for hierarchical fit (see Liu et al,
+   Section S3.2
+   'construct', construct: option to specify a custom reporter gene that
+   must be defined in the subfunction GetFluorFromPolPos (default uses the
+   P2P-MS2-lacZ-PP7 construct from Liu et al)
 
 
 Customization:
