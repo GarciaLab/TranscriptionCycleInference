@@ -65,5 +65,4 @@ The script CurateMCMCResults.m can be used to visualize MCMC fit results and opt
 With this script, you can flip between different single-cell fits and visualize the data with mean fit results, as well as the raw MCMC samples if desired. You can then approve or reject a particular fit result manually, and save these curated results in a field of the MCMCresults data structure labeled ApprovedFits. For more information, consult the header and comments inside CurateMCMCResults.m
 
 # Example using test data
-Description of test data
-Selection of inputs
+The repository contains a test dataset to familiarize yourself with the functionality of the MCMC fitting procedure, located in TestScripts\TestData.mat. This is a MATLAB structure array containing the MS2 and PP7 fluorescence signals from the 299 cells analyzed in the Liu et. al. manuscript, formatted in the fashion needed for running TranscriptionCycleMCMC.m.
