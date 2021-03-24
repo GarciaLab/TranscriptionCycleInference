@@ -1,28 +1,6 @@
 # TranscriptionCycleInference
 Repository for transcription cycle MCMC inference code from Liu et. al. (2020) (https://www.biorxiv.org/content/10.1101/2020.08.29.273474v3).
 
-
-Outline:
-- Overview of code
-- MCMCanalysis settings:
-  - n_burn
-  - n_steps
-  - ratePriorWidth
-  - t_start
-  - t_end
-  - loadPrevious
-  - numParPool
-  - construct
-- GetFluorFromPolPos:
-  - custom constructs
-- ApproveMCMCResults
-  - what to look for
-- test dataset and scripts
-  
-ToDo:
-- user option to customize initial guess and MCMC bounds/priors
-- user option to load previous datasets
-
 # Introduction
 This repository contains the MATLAB code necessary to run the Markov Chain Monte Carlo (MCMC) fitting on dual-color fluorescent reporter data as described in Liu et. al. (2020). First, this code makes use of the MCMCStat package developed by Haario. et. al., found here: https://github.com/mjlaine/mcmcstat.
 
