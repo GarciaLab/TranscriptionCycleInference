@@ -174,9 +174,9 @@ end
 t_plot = MCMCplot(i).t_plot;
 MS2_plot = MCMCplot(i).MS2_plot;
 PP7_plot = MCMCplot(i).PP7_plot;
-t_interp = MCMCplot(i).t_interp;
-MS2_interp = MCMCplot(i).MS2_interp;
-PP7_interp = MCMCplot(i).PP7_interp;
+%t_interp = MCMCplot(i).t_interp;
+%MS2_interp = MCMCplot(i).MS2_interp;
+%PP7_interp = MCMCplot(i).PP7_interp;
 simMS2 = MCMCplot(i).simMS2;
 simPP7 = MCMCplot(i).simPP7;
 MeanAP = MCMCplot(i).MeanAP;
@@ -199,7 +199,7 @@ rateerror_plot = sigma_R0 + sigma_dR;
 ratesmooth_plot = smooth(rate_plot,span);
 
 %Remove loading rates before inferred initiation time
-remove_times = find(t_interp(1:end-1) < mean_ton);
+remove_times = find(t_plot(1:end-1) < mean_ton);
 rate_plot(remove_times) = nan;
 rateerror_plot(remove_times) = nan;
 ratesmooth_plot(remove_times) = nan;
@@ -218,13 +218,13 @@ subplot(2,1,1)
 hold on
 plot(t_plot,MS2_plot,'ro','DisplayName','MS2 data');
 plot(t_plot,PP7_plot,'go','DisplayName','PP7 data');
-plot(t_interp,MS2_interp,'r-','DisplayName','MS2 interpolation');
-plot(t_interp,PP7_interp,'g-','DisplayName','PP7 interpolation');
-plot(t_interp,simMS2,'k--','DisplayName','MS2 fit');
-plot(t_interp,simPP7,'k--','DisplayName','PP7 fit');
+%plot(t_interp,MS2_interp,'r-','DisplayName','MS2 interpolation');
+%plot(t_interp,PP7_interp,'g-','DisplayName','PP7 interpolation');
+plot(t_plot,simMS2,'k--','DisplayName','MS2 fit');
+plot(t_plot,simPP7,'k--','DisplayName','PP7 fit');
 
 
-xlim([t_interp(1), t_interp(end)*1.3]);
+xlim([t_plot(1), t_plot(end)*1.3]);
 ylim([0,  max(PP7_plot) * 1.2]);
 xlabel('Time since nuclear cycle start (min)');
 ylabel('Fluorescence (AU)');
@@ -236,14 +236,14 @@ f.Color = colormap{MCMCresults(i).ApprovedFits+2}; %Set color depending on appro
 %Plot inferred rate
 subplot(2,1,2);
 hold on
-errorbar(t_interp(1:end-1),rate_plot,rateerror_plot,'r.-','CapSize',0,...
+errorbar(t_plot(1:end-1),rate_plot,rateerror_plot,'r.-','CapSize',0,...
     'DisplayName','Inferred loading rate');
-plot(t_interp(1:end-1),ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
+plot(t_plot(1:end-1),ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
 line(xlim,mean_R0(1)*[1,1],'Color','black','LineStyle','-','DisplayName',...
     'Inferred mean loading rate');
 hold off
 
-xlim([t_interp(1), t_interp(end)*1.3]);
+xlim([t_plot(1), t_plot(end)*1.3]);
 %ylim([0,  max(MS2_plot) * 1.2]);
 line(mean_ton*[1,1],ylim,'Color','blue','LineStyle','--',...
     'DisplayName','Inferred time on');
