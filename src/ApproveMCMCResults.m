@@ -179,7 +179,7 @@ PP7_plot = MCMCplot(i).PP7_plot;
 %PP7_interp = MCMCplot(i).PP7_interp;
 simMS2 = MCMCplot(i).simMS2;
 simPP7 = MCMCplot(i).simPP7;
-MeanAP = MCMCplot(i).MeanAP;
+%MeanAP = MCMCplot(i).MeanAP;
 
 %Get fit results
 mean_v = MCMCresults(i).mean_v;
@@ -229,7 +229,7 @@ ylim([0,  max(PP7_plot) * 1.2]);
 xlabel('Time since nuclear cycle start (min)');
 ylabel('Fluorescence (AU)');
 legend('Location','Northwest')
-title({['Single nucleus fit ',num2str(i),' of ',num2str(N),', AP Position ',num2str(MeanAP)]...
+title({['Single nucleus fit ',num2str(i),' of ',num2str(N)]...
     ['Elongation rate = ',num2str(mean_v), ' +/- ',num2str(sigma_v), 'kb/min']});
 f.Color = colormap{MCMCresults(i).ApprovedFits+2}; %Set color depending on approval status
 
