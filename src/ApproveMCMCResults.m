@@ -213,7 +213,7 @@ end
 
 %% Plot fit results
 
-subplot(2,1,1)
+%subplot(2,1,1)
 
 hold on
 plot(t_plot,MS2_plot,'ro','DisplayName','MS2 data');
@@ -234,22 +234,22 @@ title({['Single nucleus fit ',num2str(i),' of ',num2str(N)]...
 f.Color = colormap{MCMCresults(i).ApprovedFits+2}; %Set color depending on approval status
 
 %Plot inferred rate
-subplot(2,1,2);
-hold on
-errorbar(t_plot(1:end-1),rate_plot,rateerror_plot,'r.-','CapSize',0,...
-    'DisplayName','Inferred loading rate');
-plot(t_plot(1:end-1),ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
-line(xlim,mean_R0(1)*[1,1],'Color','black','LineStyle','-','DisplayName',...
-    'Inferred mean loading rate');
-hold off
+%subplot(2,1,2);
+%hold on
+%errorbar(t_plot(1:end-1),rate_plot,rateerror_plot,'r.-','CapSize',0,...
+%    'DisplayName','Inferred loading rate');
+%plot(t_plot(1:end-1),ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
+%line(xlim,mean_R0(1)*[1,1],'Color','black','LineStyle','-','DisplayName',...
+%    'Inferred mean loading rate');
+%hold off
 
-xlim([t_plot(1), t_plot(end)*1.3]);
+%xlim([t_plot(1), t_plot(end)*1.3]);
 %ylim([0,  max(MS2_plot) * 1.2]);
-line(mean_ton*[1,1],ylim,'Color','blue','LineStyle','--',...
-    'DisplayName','Inferred time on');
-xlabel('Time since nuclear cycle start (min)');
-ylabel('Loading rate (AU/min)');
-legend('Location','southeast');
+%line(mean_ton*[1,1],ylim,'Color','blue','LineStyle','--',...
+%    'DisplayName','Inferred time on');
+%xlabel('Time since nuclear cycle start (min)');
+%ylabel('Loading rate (AU/min)');
+%legend('Location','southeast');
 
 %Plot raw chains if desired
 if RawChains
