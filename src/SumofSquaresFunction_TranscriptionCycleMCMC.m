@@ -2,8 +2,8 @@ function SS = SumofSquaresFunction_TranscriptionCycleMCMC(construct,data,x)
 % Log likelihood probability function for constant model elongation rate MCMC fitting.
 % Currently the model infers values for elongation rate v, noise term D,
 % loading rate R, and measurement noise sigma. This is for use in the
-% MCMCstat package and returns the sum-of-squares function. We assume that
-% the calibration factor between MS2 and PP7 is unknown and use it as a
+% MCMCstat package and returns the scaled sum-of-squares function. We assume that
+% the calibration factor A between MS2 and PP7 is unknown and use it as a
 % free parameter.
 
 % Parameters
@@ -17,10 +17,10 @@ function SS = SumofSquaresFunction_TranscriptionCycleMCMC(construct,data,x)
 
 % Return
 % ------
-% SS: sum-of-squares residual
+% SS: scaled sum-of-squares residual
 
-% Note that this assumes our sampling assumes Gaussian error with fixed
-% variance/standard deviation for each measurement.
+% Note that this assumes SS = -2 * sigma^2 * log(p(fluorExp|fluorSim)), where
+% sigma^2 fixed Gaussian-type variance per measured fluorescence unit.
 
 %% Extract fit parameters and data
 
@@ -57,9 +57,9 @@ PP7 = interp1(t_interp,PP7,t);
 fluorSim = [MS2,PP7]; %Simulated fluorescences
 
 %% Compute sum-of-squares
-% Calculate the residuals of experimental and theoretical predictions
-residuals = fluorExp - fluorSim;
+% Calculate the scaled residuals of experimental and theoretical predictions
+residuals = ((fluorExp - fluorSim).^2)./fluorExp;
 
 % Compute the sum-of-squares function
-SS = nansum(residuals.^2);
+SS = nansum(residuals);
 end
