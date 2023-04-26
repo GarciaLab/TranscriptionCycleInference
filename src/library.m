@@ -1,4 +1,4 @@
-function [ElongationSegments,stemloops,x_drop,MS2_0,PP7_0] = library(construct)
+function [ElongationSegments,stemloops,x_drop] = library(construct)
 % Construct library. Input: construct identifier string; Output: construct
 % hyperparameters
 
@@ -22,9 +22,7 @@ if strcmp(construct,'P2P-MS2v5-LacZ-PP7v4')
     % Drop-off sites
     x_drop = []; %No drop-off sites
 
-    % Initial fluorescence intensities due to bound
-    %fluorophores at time t_start (in arbitrary units of PP7 and without
-    % contributions of basal fluorescence intensities)
+    % Number of consistently bound fluorophores during the whole observation time
     MS2_0 = 0;
     PP7_0 = 0;
 
@@ -46,7 +44,7 @@ elseif strcmp(construct,'test')
     % Drop-off sites
     x_drop = 2.900; % First site of a segment, where drop-off is supposed to occur
 
-    % Initial fluorescence intensities (in arbitrary units of PP7)
+    % Number of consistently bound fluorophores during the whole observation time
     MS2_0 = 0;
     PP7_0 = 0;
 
@@ -73,14 +71,14 @@ elseif strcmp(construct,'test')
     %    % Drop-off sites
     %    x_drop = <VECTOR OF DROPOFF SITES>; % First site of a segment, where drop-off is supposed to occur
 
-    % % Initial fluorescence intensities (in arbitrary units of PP7)
+    %  % Number of consistently bound fluorophores during the whole observation time
     %   MS2_0 = 0;
     %   PP7_0 = 0;
 
 else
-    error("Incorrect construct identifier.")
+    error("Incorrect construct identifier.");
 end
 
 %% Output
 ElongationSegments = struct('segments',{segments},'velocities',{velocities});
-stemloops = struct('MS2_start',{MS2_start},'MS2_end',{MS2_end},'PP7_start',{PP7_start},'PP7_end',{PP7_end},'MS2_loopn',{MS2_loopn},'PP7_loopn',{PP7_loopn});
+stemloops = struct('MS2_start',{MS2_start},'MS2_end',{MS2_end},'PP7_start',{PP7_start},'PP7_end',{PP7_end},'MS2_loopn',{MS2_loopn},'PP7_loopn',{PP7_loopn},'MS2_0',{MS2_0},'PP7_0',{PP7_0});
