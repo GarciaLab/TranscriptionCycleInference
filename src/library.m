@@ -1,8 +1,8 @@
-function [segments,velocities,MS2_start,MS2_end,PP7_start,PP7_end,MS2_loopn,PP7_loopn,x_drop,MS2_0,PP7_0] = library(construct)
+function [ElongationSegments,stemloops,x_drop,MS2_0,PP7_0] = library(construct)
 % Construct library. Input: construct identifier string; Output: construct
 % hyperparameters
 
-% Define construct parameters.
+%% Define construct parameters.
 
 if strcmp(construct,'P2P-MS2v5-LacZ-PP7v4')
 
@@ -80,3 +80,7 @@ elseif strcmp(construct,'test')
 else
     error("Incorrect construct identifier.")
 end
+
+%% Output
+ElongationSegments = struct('segments',{segments},'velocities',{velocities});
+stemloops = struct('MS2_start',{MS2_start},'MS2_end',{MS2_end},'PP7_start',{PP7_start},'PP7_end',{PP7_end},'MS2_loopn',{MS2_loopn},'PP7_loopn',{PP7_loopn});
