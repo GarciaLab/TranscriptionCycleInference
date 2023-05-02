@@ -42,7 +42,7 @@ elseif strcmp(construct,'test')
     PP7_loopn = 24; %Number of PP7 loops
 
     % Drop-off sites
-    x_drop = 2.900; % First site of a segment, where drop-off is supposed to occur
+    x_drop = 2.900; % Sites, where drop-off (including stalling) is supposed to occur
 
     % Number of consistently bound fluorophores during the whole observation time
     MS2_0 = 0;
@@ -51,7 +51,7 @@ elseif strcmp(construct,'test')
     %Define your own custom construct by modifying the above values and
     %changing the appropriate values (see template below)
     %    segments = <VECTOR OF SEGMENT ENDS>; %Segments of construct in kb (values determine ends of consecutive segments, the last entry segments(end) is always the length of the construct)
-    %    velocities = <CELL ARRAY OF ELONGATION RATE PAREMETER NAMES>;
+    %    velocities = <CELL ARRAY OF ELONGATION RATE PARAMETER NAMES>;
     %    %Assignment of elongation rate parameters to segments (different segments can have the same elongation rate)
     %
     %    % The following positions and numbers are vectors, if the construct
@@ -69,7 +69,7 @@ elseif strcmp(construct,'test')
     %    PP7_loopn = <NUMBER OF PP7 LOOPS>; %Number of PP7 loops (in general a vector)
     %
     %    % Drop-off sites
-    %    x_drop = <VECTOR OF DROPOFF SITES>; % First site of a segment, where drop-off is supposed to occur
+    %    x_drop = <VECTOR OF DROPOFF SITES>; % Sites, where drop-off (including stalling) is supposed to occur
 
     %  % Number of consistently bound fluorophores during the whole observation time
     %   MS2_0 = 0;

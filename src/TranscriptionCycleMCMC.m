@@ -30,7 +30,7 @@ function TranscriptionCycleMCMC(varargin)
 %   to retain inferred elongation rate for hierarchical fit (see Liu et al,
 %   Section S3.2
 %   'construct', construct: option to specify a custom reporter gene that
-%   must be defined in the subfunction GetFluorFromPolPos (default uses the
+%   must be defined in the subfunction library.m (default uses the
 %   P2P-MS2-lacZ-PP7 construct from Liu et al)
 %
 %   'MonteCarlo', MonteCarlo: constructs can be defined to
