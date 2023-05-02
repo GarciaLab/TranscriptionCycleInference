@@ -37,7 +37,8 @@ To use a different reporter gene than the P2P-MS2-lacZ-PP7 construct in Liu et. 
 - Positions of the MS2 and PP7 stem loop sequences as well as the number of stem loops per sequence.
 - Number of fluorophores bound consistently (to the gene itself) throughout the observation period.
 - Length of the construct and assignment of different elongation rate parameters to subsegments of the construct.
-- Potential drop-off sites
+- Potential drop-off sites.
+
 Make sure to define your reporter gene with a label, which you then pass as an argument into TranscriptionCycleMCMC.m with the variable argument 'construct'.
 
 # Curating results
