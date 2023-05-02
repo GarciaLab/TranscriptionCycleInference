@@ -60,15 +60,15 @@ if isempty(x_drop) % Without drop-off dynamics
     %after its initiation (and effective construct length L)
     [pos,N_pos] = generatePos(dt,ElongationSegments.segments,v,tau);
 
-    % Get fluorescance intensity of a single Polymerase at the positions pos
-    [singlePolMS2,singlePolPP7] = getSinglePolFluor(pos,stemloops);
+    % Get fluorescence intensity of a single Polymerase at the positions pos
+    [singlePolMS2,singlePolPP7,MS2_0,PP7_0] = getSinglePolFluor(pos,stemloops);
 
     % Get kymograph of Polymerases
     kymograph = getKymographSS(Init,N_init,N_pos,idx_on);
 
     % Get fluorescence dynamics
-    simMS2 = singlePolMS2 * kymograph;
-    simPP7 = singlePolPP7 * kymograph;
+    simMS2 = singlePolMS2 * kymograph + MS2_0;
+    simPP7 = singlePolPP7 * kymograph + PP7_0;
 else % With deterministic drop-off model
 
     %1. Get possible positions of single Polymerase at equidistant time points
@@ -76,15 +76,15 @@ else % With deterministic drop-off model
     %2. Get indices of stalling times at drop-off site
     [pos,N_pos,idx_drop] = generatePosDrop(dt,ElongationSegments.segments,v,tau,x_drop,tauDrop,N_init);
 
-    % Get fluorescance intensity of a single Polymerase at the positions pos
-    [singlePolMS2,singlePolPP7,singlePolMS2Drop,singlePolPP7Drop,N_drop] = getSinglePolFluorDrop(pos,stemloops,x_drop);
+    % Get fluorescence intensity of a single Polymerase at the positions pos
+    [singlePolMS2,singlePolPP7,singlePolMS2Drop,singlePolPP7Drop,N_drop,MS2_0,PP7_0] = getSinglePolFluorDrop(pos,stemloops,x_drop);
 
     % Get kymograph of Polymerases
     [kymograph,kymographDrop] = getKymographDrop(Init,N_init,N_pos,idx_on,idx_drop,N_drop,ProbDrop);
 
     % Get fluorescence dynamics
-    simMS2 = singlePolMS2 * kymograph + singlePolMS2Drop * kymographDrop;
-    simPP7 = singlePolPP7 * kymograph + singlePolPP7Drop * kymographDrop;
+    simMS2 = singlePolMS2 * kymograph + singlePolMS2Drop * kymographDrop + MS2_0;
+    simPP7 = singlePolPP7 * kymograph + singlePolPP7Drop * kymographDrop + PP7_0;
 end
 
 % Basal activity: Set fluorescence levels below detection threshold to basal level
@@ -169,7 +169,7 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [singlePolMS2,singlePolPP7] = getSinglePolFluor(pos,stemloops)
+function [singlePolMS2,singlePolPP7,MS2_0,PP7_0] = getSinglePolFluor(pos,stemloops)
 %Get a row-vectors of MS2 and PP7 fluorescence intensity, corresponding to a
 %single Polymerase at positions pos. These vectors can be multiplied
 %(matrix product) with the rows of the kymograph matrix (space-time plot of
@@ -190,13 +190,17 @@ PP7_0 = stemloops.PP7_0;
 singlePolMS2 = zeros(1,N_pos);
 singlePolPP7 = zeros(1,N_pos);
 
-% Total number of loops (+ constitutively bound fluorophores)
+% Total number of loops (+ constitutively bound fluorophores,i.e., bound to the DNA not RNA)
 MS2_Sum = sum(MS2_loopn) + MS2_0;
 PP7_Sum = sum(PP7_loopn) + PP7_0;
 
-%Initialize with constitutively bound fluorophores
-MS2 =  MS2_0/MS2_Sum;
-PP7 = PP7_0/PP7_Sum;
+% Rescaling of number of constitutively bound fluorophores to intensity units
+MS2_0 = MS2_0/MS2_Sum; 
+PP7_0 = PP7_0/PP7_Sum;
+
+%Initialize without constitutively bound fluorophores
+MS2 =  0;
+PP7 = 0;
 singlePolMS2(pos<=MS2_start(1)) = MS2;
 singlePolPP7(pos<=PP7_start(1)) = PP7;
 
@@ -341,7 +345,7 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [singlePolMS2,singlePolPP7,singlePolMS2_Drop,singlePolPP7_Drop,N_drop] = getSinglePolFluorDrop(pos,stemloops,x_drop)
+function [singlePolMS2,singlePolPP7,singlePolMS2_Drop,singlePolPP7_Drop,N_drop,MS2_0,PP7_0] = getSinglePolFluorDrop(pos,stemloops,x_drop)
 %Get a row-vectors of MS2 and PP7 fluorescence intensity, corresponding to a
 %single Polymerase at positions pos and positions x_drop. These vectors can be multiplied
 %(matrix product) with the rows of a kymograph matrix (space-time plot of
@@ -365,13 +369,17 @@ singlePolPP7 = zeros(1,N_pos);
 singlePolMS2_Drop = zeros(1,N_drop);
 singlePolPP7_Drop = zeros(1,N_drop);
 
-% Total number of loops (+ constitutively bound fluorophores)
+% Total number of loops (+ constitutively bound fluorophores,i.e., bound to the DNA not RNA)
 MS2_Sum = sum(MS2_loopn) + MS2_0;
 PP7_Sum = sum(PP7_loopn) + PP7_0;
 
-%Initialize with constitutively bound fluorophores
-MS2 =  MS2_0/MS2_Sum;
-PP7 = PP7_0/PP7_Sum;
+% Rescaling of number of constitutively bound fluorophores to intensity units
+MS2_0 = MS2_0/MS2_Sum; 
+PP7_0 = PP7_0/PP7_Sum;
+
+%Initialize without constitutively bound fluorophores
+MS2 =  0;
+PP7 = 0;
 singlePolMS2(pos<=MS2_start(1)) = MS2;
 singlePolPP7(pos<=PP7_start(1)) = PP7;
 singlePolMS2_Drop(x_drop<=MS2_start(1)) = MS2;
