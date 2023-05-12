@@ -57,7 +57,7 @@ PriorTrunc = 30;
 t_start = 0;
 t_end = Inf;
 loadPrevious = false;
-construct = 'P2P-MS2v5-LacZ-PP7v4';
+construct = 'test';
 MonteCarlo = 0;
 
 for i=1:length(varargin)
@@ -238,25 +238,24 @@ for k = 1:length(data_all)
         MCMCresults(cellNum).cell_index = cellNum;
         MCMCresults(cellNum).FittedConstruct = construct;
 
-        %Save means of the resulting individual chains and upper bound to
-        %the error of the posterior mean estimator (Geyer's monotone sequence estimator)
-        %MG TODO: so far the multivariate(!) monotone sequence estimator is not implemented and instead the standard deviation with normalization N is returned)
+        %Save means of the resulting individual chains and equal-tailed 95%-credible
+        %intervals
         N_idx=(length(fields_MCMCresults)-3)/2;
         mean_params = zeros(1,N_idx-2); %Generate vector of mean parameters
+        BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
+        lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
+        CredibleIntervals = quantile(chain(n_burn:end,:),[lower_quantile,upper_quantile]); %Get credible intervals
         for idx=1:(N_idx-2)
             mean_params(idx) = mean(MCMCchain(cellNum).(fields_MCMCchain{idx}));
             MCMCresults(cellNum).(fields_MCMCresults{idx}) = mean_params(idx); %Extract and save posterior mean of the parameter
+            MCMCresults(cellNum).(fields_MCMCresults{N_idx+idx}) = CredibleIntervals(:,idx); %Extract and save credible interval of the parameter
         end
         MCMCresults(cellNum).mean_dR = mean(MCMCchain(cellNum).dR_chain);
         mean_params = [mean_params,MCMCresults(cellNum).mean_dR]; %Add initiation fluctuations to mean parameter vector
-        MCMCresults(cellNum).mean_sigma = sqrt(mean(MCMCchain(cellNum).s2chain)); %square root of posterior mean of error variance s2
-
-        for idx=1:(N_idx-1)
-            MCMCresults(cellNum).(fields_MCMCresults{N_idx+idx}) = std(MCMCchain(cellNum).(fields_MCMCchain{idx}),1);
-            %both std(...) and std(...,1) are taken along columns, but the
-            %first normalizes the variance by (N-1) and the second by N.
-        end
-        MCMCresults(cellNum).sigma_sigma = sqrt(std(MCMCchain(cellNum).s2chain,1)); %square root of posterior standard deviation of error variance s2
+        MCMCresults(cellNum).CI_dR = CredibleIntervals(:,length(fields_params):end); %Save credible intervals of initiation fluctuations
+        MCMCresults(cellNum).mean_sigma = sqrt(mean(s2chain(n_burn:end))); %square root of posterior mean of error variance s2
+        MCMCresults(cellNum).CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile])); %square root of credible interval of error variance s2
+        
 
 
         %If using previous results, carry over approval/rejection

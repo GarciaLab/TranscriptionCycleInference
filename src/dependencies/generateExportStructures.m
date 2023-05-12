@@ -23,7 +23,7 @@ fields_MCMCchain = cellfun(@(x) strcat(x, '_chain'), params, 'UniformOutput', fa
 fields_MCMCchain{end} = 's2chain'; %Change 's2_chain' to 's2chain' (for consistency with previous version)
 varparams = params; varparams{end} = 'sigma'; %Change 's2' to 'sigma' (for consistency with previous version)
 fields_MCMCresults = [cellfun(@(x) strcat('mean_',x), varparams, 'UniformOutput', false),...
-    cellfun(@(x) strcat('sigma_',x), varparams, 'UniformOutput', false),{'cell_index','ApprovedFits','FittedConstruct'}]; %Add prefixes 'mean_' and 'sigma_' to all parameter names. Further add the fields 'cell_index' and 'ApprovedFits'.
+    cellfun(@(x) strcat('CI_',x), varparams, 'UniformOutput', false),{'cell_index','ApprovedFits','FittedConstruct'}]; %Add prefixes 'mean_' and 'CI_' to all parameter names. Further add the fields 'cell_index' and 'ApprovedFits'.
 
 %Generate empty structures
 MCMCchain = cell2struct(cell(1,length(fields_MCMCchain)),fields_MCMCchain,2);
