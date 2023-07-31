@@ -123,8 +123,7 @@ data_all = LoadData(fileDir,loadPrevious);
 switch MonteCarlo
     case 0
         %Set log-likelihood (sum-of-squares residual function)
-        ssfun = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop,true);
-        simulator = @(data,x) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop,false);
+        ssfun = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop);
     otherwise
         %Set Monte Carlo approximation of the likelihood
         error('Error: Drop off dynamics not yet implemented.');
@@ -228,7 +227,7 @@ for k = 1:length(data_all)
 
         %% 3.2.3) Extract and save results of MCMC for each single cell of the dataset
         % Save MCMC chains for individual parameters into the structure MCMCchain
-        for idx=1:(length(fields_MCMCchain)-2)
+        for idx=1:(length(fields_params)-1)
             MCMCchain(cellNum).(fields_MCMCchain{idx}) = chain(n_burn:end,idx);
         end
         MCMCchain(cellNum).dR_chain = chain(n_burn:end,length(fields_params):end);
@@ -240,12 +239,12 @@ for k = 1:length(data_all)
 
         %Save means of the resulting individual chains and equal-tailed 95%-credible
         %intervals
-        N_idx=(length(fields_MCMCresults)-3)/2;
+        N_idx=length(fields_params)+1;
         mean_params = zeros(1,N_idx-2); %Generate vector of mean parameters
         BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
         lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
         CredibleIntervals = quantile(chain(n_burn:end,:),[lower_quantile,upper_quantile]); %Get credible intervals
-        for idx=1:(N_idx-2)
+        for idx=1:N_idx-2
             mean_params(idx) = mean(MCMCchain(cellNum).(fields_MCMCchain{idx}));
             MCMCresults(cellNum).(fields_MCMCresults{idx}) = mean_params(idx); %Extract and save posterior mean of the parameter
             MCMCresults(cellNum).(fields_MCMCresults{N_idx+idx}) = CredibleIntervals(:,idx); %Extract and save credible interval of the parameter
@@ -254,7 +253,7 @@ for k = 1:length(data_all)
         mean_params = [mean_params,MCMCresults(cellNum).mean_dR]; %Add initiation fluctuations to mean parameter vector
         MCMCresults(cellNum).CI_dR = CredibleIntervals(:,length(fields_params):end); %Save credible intervals of initiation fluctuations
         MCMCresults(cellNum).mean_sigma = sqrt(mean(s2chain(n_burn:end))); %square root of posterior mean of error variance s2
-        MCMCresults(cellNum).CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile])); %square root of credible interval of error variance s2
+        MCMCresults(cellNum).CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile]))'; %square root of credible interval of error variance s2
         
 
 
@@ -266,7 +265,7 @@ for k = 1:length(data_all)
         end
 
         %Simulated fluorescences of best fit (with posterior mean parameters)
-        [simMS2,simPP7] = simulator(data,mean_params);
+        [~,simMS2,simPP7] = getFluorescenceDynamicsSS(data,mean_params,ElongationSegments,velocity_names,stemloops,x_drop);
 
         % Save data and best fit (from t_start to t_end) for plotting
         MCMCplot(cellNum).t_plot = t;

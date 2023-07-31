@@ -1,4 +1,4 @@
-function [varargout] = getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop,mode)
+function [SS,simMS2,simPP7] = getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop)
 %getFluorescenceDynamicsSS computes either the sum-off-squares function
 %(given data and parameters, if mode==true) or simulated fluorescence traces (given
 %parameters, if mode=false).
@@ -106,15 +106,6 @@ residuals = ((fluorExp - [simMS2,simPP7]).^2)./fluorExp;
 % Compute the sum-of-squares function
 SS = nansum(residuals);
 
-%% Output
-
-switch mode
-    case true
-        varargout(1) = {SS};
-    case false
-        varargout(1) = {simMS2};
-        varargout(2) = {simPP7};
-end
 
 end
 
