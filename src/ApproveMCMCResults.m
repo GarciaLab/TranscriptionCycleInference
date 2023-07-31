@@ -25,7 +25,9 @@ function ApproveMCMCResults(varargin)
 %   'nc13': analyze nc13
 %   'nc14': analyze nc14
 %   'RawChains': view raw MCMC chains
-%   'SmoothRate': percentage of loaded datapoints to smooth the loading
+%   'InitiationFluctuations': option to simultaneously view the initiation rate
+%   fluctuations
+%   'SmoothRate': percentage of loaded datapoints to smooth the initiation
 %   rate
 %   'fileDir': specify file directory. Otherwise a dialog box will open to
 %   let you choose the directory.
@@ -40,7 +42,9 @@ load_meanrate = false;
 load_polyrate = false;
 load_previous = false;
 RawChains = false; %By default, don't look at raw chains.
+InitiationFluctuations = false; %By default, don't look at initiation fluctuations.
 span = 0.1; %By default, smooth loading rate using 10% of datapoints.
+fileDir = '';
 
 for i=1:length(varargin)
     if strcmpi(varargin{i},'InitialRise')
@@ -64,18 +68,22 @@ for i=1:length(varargin)
     if strcmpi(varargin{i},'RawChains')
         RawChains = true;
     end
+    if strcmpi(varargin{i},'InitiationFluctuations')
+        InitiationFluctuations = true;
+    end
     if strcmpi(varargin{i},'SmoothRate')
         span = varargin{i+1};
     end
     if strcmpi(varargin{i},'LoadPrevious')
         load_previous = true;
     end
+    if strcmpi(varargin{i},'fileDir')
+        fileDir = varargin{i+1};
+    end
 end
 
 %% Load results
-if strcmpi(varargin{i},'fileDir')
-    fileDir = varargin{i+1};
-else
+if isempty(fileDir)
     msg_box = msgbox('Choose the directory, that contains the MCMC results.', 'Directory Selection'); % Display a message box with instructions
     uiwait(msg_box); % Halt execution (make the figure modal) until the OK button is clicked on the message box
     fileDir = uigetdir(pwd); % Open dialog box to choose the directory
@@ -129,8 +137,8 @@ end
 %without loading the whole file into memory.
 m = matfile(fullfile(files(s_all(s)).folder,char(names(s_all(s))),filesep),...
     'Writable',true);
-vars = whos(m); %Unpack the variables of m
-varnames = {vars.name};
+% vars = whos(m); %Unpack the variables of m
+% varnames = {vars.name};
 N = length(m.MCMCplot); %Number of nuclei fits in this dataset
 
 %Extract the data into temporary variables.
@@ -138,8 +146,8 @@ MCMCplot = m.MCMCplot;
 MCMCresults = m.MCMCresults;
 
 % In case of RawChain option, look for *_RawChain.mat file in fileDir and
-% fileDir/Raw Chains/. Otherwise open dialog box to choose the file. 
-if RawChains
+% fileDir/Raw Chains/. Otherwise open dialog box to choose the file.
+if or(RawChains,InitiationFluctuations)
     chain_file = fullfile(files(s_all(s)).folder,'Raw Chains',[names{s_all(s)}(1:end-4),'_RawChain.mat']);
     if exist(chain_file, 'file') == 2
         %disp('File exists')
@@ -157,7 +165,7 @@ if RawChains
             if contains(chain_file,names{s_all(s)}(1:end-4))
                 chains = load([chain_path,chain_file]);
             else
-                error('You picked the wrong file for the RawChains option.');
+                error('You picked the wrong file for the RawChains or InitiationFluctuations option.');
             end
         end
     end
@@ -187,7 +195,7 @@ construct = MCMCresults(1).FittedConstruct;
 %Query to the construct library regarding the construct details:
 %'segments' and 'velocities' contain details about the elongation rates on
 %different segments of the construct and the length of the construct
-[ElongationSegments,~,x_drop] = library(construct);
+[ElongationSegments,~,~] = library(construct);
 
 %Extract distinguishable names of velocity parameters
 velocity_names = unique(ElongationSegments.velocities);
@@ -213,9 +221,25 @@ cellNum = 1; %Start with first indexed nucleus for now
 
 close all
 
-if RawChains
-    f = figure('Name','Inference Results','Position',[50 100 500 600]);
-    c = figure('Name','Parameter distributions','Position',[600 100 600 600]);
+if or(RawChains,InitiationFluctuations)
+    % Split the display with the two plots
+    % Get the size of the screen
+    screenSize = get(groot, 'Screensize');
+
+    % Set up the figure properties
+    left = screenSize(1);
+    bottom = screenSize(2);
+    width = screenSize(3) / 2;  % Split the width by half
+    height = screenSize(4);
+
+    % Define the figures
+    f = figure('Name','Inference Results','Position',[left bottom width*0.9 height*0.9]);
+
+    if RawChains
+    c = figure('Name','Parameter distributions','Position',[left+1.1*width bottom width*0.9 height*0.9]);
+    end
+    % f = figure('Name','Inference Results','Position',[50 100 500 600]);
+    % c = figure('Name','Parameter distributions','Position',[600 100 600 600]);
 else
     f = figure('Name','Inference Results','Position',[200 100 800 600]);
 
@@ -248,36 +272,49 @@ while running
     end
 
     mean_R = MCMCresults(cellNum).mean_R;
-    sigma_R = MCMCresults(cellNum).CI_R; %TODO
-    mean_dR = MCMCresults(cellNum).mean_R;
-    sigma_dR = MCMCresults(cellNum).CI_dR; %TODO
-    mean_ton = MCMCresults(i).mean_ton;
-    sigma_ton = MCMCresults(i).CI_ton; %TODO
-    mean_dwelltime = MCMCresults(i).mean_tau;
-    sigma_dwelltime = MCMCresults(i).CI_tau; %TODO
-
-    %Smoothed loading rate
-    rate_plot = mean_R + mean_dR;
-    rateerror_plot = sigma_R + sigma_dR;
-    ratesmooth_plot = smooth(rate_plot,span);
-
-    %Remove loading rates before inferred initiation time
-    remove_times = find(t_plot(1:end-1) < mean_ton);
-    rate_plot(remove_times) = NaN;
-    rateerror_plot(remove_times) = NaN;
-    ratesmooth_plot(remove_times) = NaN;
+    CI_R = MCMCresults(cellNum).CI_R;
+    mean_dR_end = MCMCresults(cellNum).mean_dR(end);
+    CI_dR_end = MCMCresults(cellNum).CI_dR(:,end);
+    mean_ton = MCMCresults(cellNum).mean_ton;
+    CI_ton = MCMCresults(cellNum).CI_ton;
+    mean_dwelltime = MCMCresults(cellNum).mean_tau;
+    CI_dwelltime = MCMCresults(cellNum).CI_tau;
 
     %Raw chain results
     if RawChains
         dwelltime_chain = MCMCchain(cellNum).tau_chain; %termination dwell time
         R_chain = MCMCchain(cellNum).R_chain; %mean loading rate
-        dR_chain = MCMCchain(cellNum).R_chain; %last loading rate fluctuation
+        dR_chain_end = MCMCchain(cellNum).dR_chain(:,end); %last loading rate fluctuation
+        ton_chain = MCMCchain(cellNum).ton_chain;
+    end
+
+    % Initiation fluctuations
+    if InitiationFluctuations
+        R_chain = MCMCchain(cellNum).R_chain; %mean loading rate
+        noisyR_chain = MCMCchain(cellNum).R_chain + MCMCchain(cellNum).dR_chain;
+        BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
+        lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
+        noisyR_CIs = quantile(noisyR_chain,[lower_quantile,upper_quantile]);
+
+        %Smoothed loading rate
+        rate_plot = mean(noisyR_chain);
+        rateerror_plot_lower = rate_plot - noisyR_CIs(1,:);
+        rateerror_plot_upper = noisyR_CIs(2,:) - rate_plot;
+        ratesmooth_plot = smooth(rate_plot,span);
+
+        %Remove loading rates before inferred initiation time
+        remove_times = find(t_plot(1:end-1) < mean_ton);
+        rate_plot(remove_times) = NaN;
+        rateerror_plot(remove_times) = NaN;
+        ratesmooth_plot(remove_times) = NaN;
     end
 
     %% Plot fit results
 
-    %subplot(2,1,1)
     figure(f);
+    if InitiationFluctuations
+        subplot(2,1,1)
+    end
     hold on
     plot(t_plot,MS2_plot,'ro','DisplayName','MS2 data');
     plot(t_plot,PP7_plot,'go','DisplayName','PP7 data');
@@ -302,52 +339,82 @@ while running
     title(title_array);
     f.Color = colormap{MCMCresults(cellNum).ApprovedFits+2}; %Set color depending on approval status
 
-    %Plot inferred rate
-    %subplot(2,1,2);
-    %hold on
-    %errorbar(t_plot(1:end-1),rate_plot,rateerror_plot,'r.-','CapSize',0,...
-    %    'DisplayName','Inferred loading rate');
-    %plot(t_plot(1:end-1),ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
-    %line(xlim,mean_R*[1,1],'Color','black','LineStyle','-','DisplayName',...
-    %    'Inferred mean loading rate');
-    %hold off
+    if InitiationFluctuations
+        %Plot inferred rate
+        subplot(2,1,2);
+        hold on
+        disp(size(rate_plot));
+        disp(size(t_plot));
+        errorbar(t_plot,rate_plot,rateerror_plot_lower,rateerror_plot_upper,'r.-','CapSize',0,...
+            'DisplayName','Inferred loading rate');
+        plot(t_plot,ratesmooth_plot,'k--','DisplayName','Smoothed loading rate');
+        line(xlim,mean_R*[1,1],'Color','black','LineStyle','-','DisplayName',...
+            'Inferred mean loading rate');
+        hold off
 
-    %xlim([t_plot(1), t_plot(end)*1.3]);
-    %ylim([0,  max(MS2_plot) * 1.2]);
-    %line(mean_ton*[1,1],ylim,'Color','blue','LineStyle','--',...
-    %    'DisplayName','Inferred time on');
-    %xlabel('Time since nuclear cycle start (min)');
-    %ylabel('Loading rate (AU/min)');
-    %legend('Location','southeast');
+        xlim([t_plot(1), t_plot(end)*1.3]);
+        ylim([min(rate_plot - rateerror_plot_lower)*(1-sign(min(rate_plot - rateerror_plot_lower))*0.1),  max(rateerror_plot_upper +rate_plot) * 1.2]);
+        line(mean_ton*[1,1],ylim,'Color','blue','LineStyle','--',...
+            'DisplayName','Inferred time on');
+        xlabel('Time since nuclear cycle start (min)');
+        ylabel('Loading rate (AU/min)');
+        legend('Location','southeast');
+    end
+
 
     %Plot raw chains if desired
     if RawChains
         figure(c);
+        xlim('auto');
         hold on;
 
-        subplot(3,2,1)
+        subplot(4,2,1)
         histogram(dwelltime_chain);
+        line(mean_dwelltime*[1,1],ylim,'Color','green','LineStyle','--');
+        line(CI_dwelltime(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(CI_dwelltime(2)*[1,1],ylim,'Color','black','LineStyle','--');
         xlabel('Dwell time (min)');
+        title(['Mean: ',num2str(mean_dwelltime),' (95% CI: [',num2str(CI_dwelltime(1)),', ',num2str(CI_dwelltime(2)),'])']);
 
-        subplot(3,2,2)
+        subplot(4,2,2)
         plot(dwelltime_chain,'b.');
         ylabel('Dwell time(min)');
 
-        subplot(3,2,3)
+        subplot(4,2,3)
         histogram(R_chain);
+        line(mean_R*[1,1],ylim,'Color','green','LineStyle','--');
+        line(CI_R(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(CI_R(2)*[1,1],ylim,'Color','black','LineStyle','--');
         xlabel('Mean loading rate (AU/min)');
+        title(['Mean: ',num2str(mean_R),' (95% CI: [',num2str(CI_R(1)),', ',num2str(CI_R(2)),'])']);
 
-        subplot(3,2,4)
+        subplot(4,2,4)
         plot(R_chain,'b.');
         ylabel('Mean loading rate (AU/min)');
 
-        subplot(3,2,5)
-        histogram(dR_chain(:,end));
+        subplot(4,2,5)
+        histogram(dR_chain_end);
+        line(mean_dR_end*[1,1],ylim,'Color','green','LineStyle','--');
+        line(CI_dR_end(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(CI_dR_end(2)*[1,1],ylim,'Color','black','LineStyle','--');
         xlabel('Last loading rate fluctuation (AU/min)');
+        title(['Mean: ',num2str(mean_dR_end),' (95% CI: [',num2str(CI_dR_end(1)),', ',num2str(CI_dR_end(2)),'])']);
 
-        subplot(3,2,6)
-        plot(dR_chain(:,end),'b.');
+        subplot(4,2,6)
+        plot(dR_chain_end,'b.');
         ylabel('Last loading rate fluctuation (AU/min)');
+
+        subplot(4,2,7)
+        histogram(ton_chain);
+        xlabel('on-time (min)');
+        line(mean_ton*[1,1],ylim,'Color','green','LineStyle','--');
+        line(CI_ton(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(CI_ton(2)*[1,1],ylim,'Color','black','LineStyle','--');
+        title(['Mean: ',num2str(mean_ton),' (95% CI: [',num2str(CI_ton(1)),', ',num2str(CI_ton(2)),'])']);
+
+        subplot(4,2,8)
+        plot(ton_chain,'b.');
+        ylabel('Mean On-time (min)');
     end
 
     % User options (approve/reject, change nucleus)
