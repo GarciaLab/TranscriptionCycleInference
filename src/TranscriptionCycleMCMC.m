@@ -74,7 +74,7 @@ for i=1:length(varargin)
         n_burn = varargin{i+1};
     end
     if strcmpi(varargin{i},'n_adapt')
-        n_burn = varargin{i+1};
+        n_adapt = varargin{i+1};
     end
     if strcmpi(varargin{i},'n_steps')
         n_steps = varargin{i+1};
