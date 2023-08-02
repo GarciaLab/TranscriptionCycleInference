@@ -26,6 +26,10 @@ function TranscriptionCycleMCMC(varargin)
 %   fluctuation term dR(t) to the interval (-PriorTrunc, PriorTrunc). (default = 30)
 %   't_start', t_start: time value to start fit at (default = 0)
 %   't_end', t_end: time value to end fit at (default = Inf)
+%   'BayesianCoverage': set Bayesian coverage of the credible intervals of
+%   the fitted parameter. Either set to value between 0 and 1, or use
+%   '1std', '2std' or '3std' to set to a multiple of the coverage of the
+%   standard deviation of a Gaussian
 %   'loadPrevious', true/false: option to load previous inference results
 %   to retain inferred elongation rate for hierarchical fit (see Liu et al,
 %   Section S3.2
@@ -56,8 +60,9 @@ ratePriorWidth = 50;
 PriorTrunc = 30;
 t_start = 0;
 t_end = Inf;
+BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
 loadPrevious = false;
-construct = 'test';
+construct = 'P2P-MS2v5-LacZ-PP7v4';
 MonteCarlo = 0;
 
 for i=1:length(varargin)
@@ -90,6 +95,26 @@ for i=1:length(varargin)
     end
     if strcmpi(varargin{i},'t_end')
         t_end = varargin{i+1};
+    end
+    if strcmpi(varargin{i},'BayesianCoverage')
+        if isa(varargin{i+1},'double')
+            if and(varargin{i+1}>0,varargin{i+1}<1)
+                BayesianCoverage = varargin{i+1};
+            end
+        elseif isa(varargin{i+1},'char')
+            switch varargin{i+1}
+                case '1std'
+                    BayesianCoverage = 0.6627;
+                case '2std'
+                    BayesianCoverage = 0.9545;
+                case '3std'
+                    BayesianCoverage = 0.9973;
+                otherwise
+                    disp('Wrong input for Bayesian coverage. Set to default: 0.95');
+            end
+        else
+            disp('Wrong input for Bayesian coverage. Set to default: 0.95');
+        end
     end
     if strcmpi(varargin{i},'loadPrevious')
         loadPrevious = true;
@@ -236,12 +261,16 @@ for k = 1:length(data_all)
         %Save cell number and fitted construct
         MCMCresults(cellNum).cell_index = cellNum;
         MCMCresults(cellNum).FittedConstruct = construct;
+        MCMCresults(cellNum).BayesianCoverageCI = BayesianCoverage;
+        MCMCresults(cellNum).AdaptiveSteps = n_adapt;
+        MCMCresults(cellNum).ratePriorWidth = ratePriorWidth;
+        
 
         %Save means of the resulting individual chains and equal-tailed 95%-credible
         %intervals
         N_idx=length(fields_params)+1;
         mean_params = zeros(1,N_idx-2); %Generate vector of mean parameters
-        BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
+
         lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
         CredibleIntervals = quantile(chain(n_burn:end,:),[lower_quantile,upper_quantile]); %Get credible intervals
         for idx=1:N_idx-2
@@ -254,7 +283,7 @@ for k = 1:length(data_all)
         MCMCresults(cellNum).CI_dR = CredibleIntervals(:,length(fields_params):end); %Save credible intervals of initiation fluctuations
         MCMCresults(cellNum).mean_sigma = sqrt(mean(s2chain(n_burn:end))); %square root of posterior mean of error variance s2
         MCMCresults(cellNum).CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile]))'; %square root of credible interval of error variance s2
-        
+
 
 
         %If using previous results, carry over approval/rejection
