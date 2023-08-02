@@ -1,10 +1,10 @@
 function ApproveMCMCResults(varargin)
 
 %Analyzes saved MCMC results of 2 color elongation data of a particular
-%construct (specified in the library).The user has the option of approving
+%construct (specified in the library). The user has the option of approving
 %or rejecting the results of each single nucleus fit. The approved/rejected
 %results are saved in the same .mat file as the MCMC results.
-
+%
 %The MCMC results should be saved as a .mat file with 2 stuctures, MCMCplot
 %and MCMCresults. Each should be of size 1xN, where N is the number of
 %single nucleus fits in the dataset. Additionally, if the file has already
@@ -14,23 +14,33 @@ function ApproveMCMCResults(varargin)
 %   1: approved
 %   0: uncurated (can be approved if ApproveAll is used in post-analysis)
 %   -1: rejected
-
-%Variable input arguments:
-%   'DwellModel': analyze dwell time model results
-%   'TerminationModel': analyze termination model results
-%   'InitialRise': analyze initial rise analysis results
-%   'WholeCycle': analyze whole cycle analysis results
-%   'LoadPrevious': load ApprovedFits from previous analysis of the same
-%    dataset to save into this one
-%   'nc13': analyze nc13
-%   'nc14': analyze nc14
-%   'RawChains': view raw MCMC chains
-%   'InitiationFluctuations': option to simultaneously view the initiation rate
-%   fluctuations
-%   'SmoothRate': percentage of loaded datapoints to smooth the initiation
-%   rate
+%
+% Variable input arguments:
 %   'fileDir': specify file directory. Otherwise a dialog box will open to
-%   let you choose the directory.
+%              let you choose the directory.
+%   'RawChains': view raw MCMC chains (show default parameter selection)
+%   'RawChainsCheckbox': view raw MCMC chains and select the parameters via
+%                        a dialog box
+%   'InitiationFluctuations': option to simultaneously view the initiation
+%                             rate fluctuations 
+%   'SmoothRate': percentage of datapoints used for a smoothed plot of the
+%                           initiation rate fluctuations 
+%   'InitialRise': option to reduce import selection to files containing
+%                  "InitialRise" in their name
+%
+%   'MeanRate': option to reduce import selection to files containing
+%               "MeanRate" in their name (inhibits 'PolyRate' option)
+%   'PolyRate': option to reduce import selection to files containing
+%               "PolyRate" in their name
+%   'WholeCycle': option to reduce import selection to files containing
+%                 "Whole" in their name
+%   'LoadPrevious': import the results of a previous data curation
+%                   (ApprovedFits) and overwrite the respective structures
+%                   in the currently loaded dataset 
+%   'nc13': option to reduce import selection to files containing
+%           "nc13" in their name (inhibits 'nc14' option)
+%   'nc14': option to reduce import selection to files containing
+%           "nc14" in their name
 
 %% Input arguments
 %By default, user select which datasets to load
@@ -41,8 +51,14 @@ load_nc14 = false;
 load_meanrate = false;
 load_polyrate = false;
 load_previous = false;
-RawChains = false; %By default, don't look at raw chains.
-InitiationFluctuations = false; %By default, don't look at initiation fluctuations.
+
+%By default, don't look at raw chains.
+RawChains = false;
+RawChainsCheckbox = false;
+
+
+%By default, don't look at initiation fluctuations.
+InitiationFluctuations = false;
 span = 0.1; %By default, smooth loading rate using 10% of datapoints.
 fileDir = '';
 
@@ -67,6 +83,9 @@ for i=1:length(varargin)
     end
     if strcmpi(varargin{i},'RawChains')
         RawChains = true;
+    end
+    if strcmpi(varargin{i},'RawChainsCheckbox')
+        RawChainsCheckbox = true;
     end
     if strcmpi(varargin{i},'InitiationFluctuations')
         InitiationFluctuations = true;
@@ -147,7 +166,7 @@ MCMCresults = m.MCMCresults;
 
 % In case of RawChain option, look for *_RawChain.mat file in fileDir and
 % fileDir/Raw Chains/. Otherwise open dialog box to choose the file.
-if or(RawChains,InitiationFluctuations)
+if or(or(RawChains,RawChainsCheckbox),InitiationFluctuations)
     chain_file = fullfile(files(s_all(s)).folder,'Raw Chains',[names{s_all(s)}(1:end-4),'_RawChain.mat']);
     if exist(chain_file, 'file') == 2
         %disp('File exists')
@@ -203,7 +222,25 @@ velocity_names = unique(ElongationSegments.velocities);
 % Generate field names of velocity parameters
 velocity_fields_MCMCresults = [cellfun(@(x) strcat('mean_',x), velocity_names, 'UniformOutput', false),...
     cellfun(@(x) strcat('CI_',x), velocity_names, 'UniformOutput', false)];
-%[fields_params,fields_MCMCchain,fields_MCMCresults] = generateExportStructures(1,velocity_names,x_drop);
+
+if RawChainsCheckbox
+    % Select chains via dialog box
+    [disp_default_chains,defaultText,disp_velocity_chains] = CheckboxDialog(velocity_names);
+    
+    % Get number of chains to view
+    size_rawchainplot = sum(disp_default_chains) + sum(disp_velocity_chains); %number of raw chains displayed (number of subplot rows)
+    
+    % Obtain names of parameters to view
+    defaultParams = defaultText(2,:); defaultParams = defaultParams(disp_default_chains);
+    defaultOptions = defaultText(1,:); defaultOptions = defaultOptions(disp_default_chains);
+    defaultOption_Units = defaultText(3,:); defaultOption_Units = defaultOption_Units(disp_default_chains);
+    velocityOptions = velocity_names(disp_velocity_chains);
+
+    % Generate field names of chains to view
+    default_fields_MCMCchains = cellfun(@(x) strcat(x,'_chain'), defaultParams, 'UniformOutput', false);
+    velocity_fields_MCMCchains = cellfun(@(x) strcat(x,'_chain'), velocity_names, 'UniformOutput', false);
+    velocity_fields_MCMCchains = velocity_fields_MCMCchains(disp_velocity_chains);
+end
 
 %% Approve/reject fits
 
@@ -221,7 +258,7 @@ cellNum = 1; %Start with first indexed nucleus for now
 
 close all
 
-if or(RawChains,InitiationFluctuations)
+if or(or(RawChains,RawChainsCheckbox),InitiationFluctuations)
     % Split the display with the two plots
     % Get the size of the screen
     screenSize = get(groot, 'Screensize');
@@ -235,7 +272,7 @@ if or(RawChains,InitiationFluctuations)
     % Define the figures
     f = figure('Name','Inference Results','Position',[left bottom width*0.9 height*0.9]);
 
-    if RawChains
+    if or(RawChains,RawChainsCheckbox)
     c = figure('Name','Parameter distributions','Position',[left+1.1*width bottom width*0.9 height*0.9]);
     end
     % f = figure('Name','Inference Results','Position',[50 100 500 600]);
@@ -247,7 +284,7 @@ end
 while running
 
     clf(f); %Clear figure
-    if RawChains
+    if or(RawChains,RawChainsCheckbox)
         clf(c);
     end
 
@@ -286,6 +323,26 @@ while running
         R_chain = MCMCchain(cellNum).R_chain; %mean loading rate
         dR_chain_end = MCMCchain(cellNum).dR_chain(:,end); %last loading rate fluctuation
         ton_chain = MCMCchain(cellNum).ton_chain;
+    end
+
+    if RawChainsCheckbox
+
+        default_chains = cell(4,sum(disp_default_chains));
+        for i = 1:sum(disp_default_chains)
+            default_chains{1,i} = MCMCchain(cellNum).(default_fields_MCMCchains{i});
+            default_chains{2,i} = defaultOptions{i};
+            default_chains{3,i} = MCMCresults(cellNum).(['mean_',defaultParams{i}])(:,end);
+            default_chains{4,i} = MCMCresults(cellNum).(['CI_',defaultParams{i}])(:,end);
+        end
+
+        velocity_chains = cell(4,sum(disp_velocity_chains));
+        v_chains_idx = find(disp_velocity_chains);
+        for i = 1:sum(disp_velocity_chains)
+            velocity_chains{1,i} = MCMCchain(cellNum).(velocity_fields_MCMCchains{v_chains_idx(i)});
+            velocity_chains{2,i} = velocity_names{v_chains_idx(i)};
+            velocity_chains{3,i} = mean_velocity(v_chains_idx(i));
+            velocity_chains{4,i} = CI_velocities(:,v_chains_idx(i));
+        end
     end
 
     % Initiation fluctuations
@@ -414,8 +471,42 @@ while running
 
         subplot(4,2,8)
         plot(ton_chain,'b.');
-        ylabel('Mean On-time (min)');
+        ylabel('on-time (min)');
     end
+
+    if RawChainsCheckbox
+        figure(c);
+        xlim('auto');
+        hold on;
+
+        for num_subplot = 1: sum(disp_default_chains)   
+        subplot(size_rawchainplot,2,2*num_subplot-1)
+        histogram(default_chains{1,num_subplot});
+        line(default_chains{3,num_subplot}*[1,1],ylim,'Color','green','LineStyle','--');
+        line(default_chains{4,num_subplot}(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(default_chains{4,num_subplot}(2)*[1,1],ylim,'Color','black','LineStyle','--');
+        xlabel([defaultOptions{num_subplot},defaultOption_Units{num_subplot}]);
+        title(['Mean: ',num2str(default_chains{3,num_subplot}),' (95% CI: [',num2str(default_chains{4,num_subplot}(1)),', ',num2str(default_chains{4,num_subplot}(2)),'])']);
+
+        subplot(size_rawchainplot,2,2*num_subplot)
+        plot(default_chains{1,num_subplot},'b.');
+        ylabel([defaultOptions{num_subplot},defaultOption_Units{num_subplot}]);
+        end
+        for num_subplot = 1:sum(disp_velocity_chains)
+        subplot(size_rawchainplot,2,2*num_subplot - 1 + 2*sum(disp_default_chains))
+        histogram(velocity_chains{1,num_subplot});
+        line(velocity_chains{3,num_subplot}*[1,1],ylim,'Color','green','LineStyle','--');
+        line(velocity_chains{4,num_subplot}(1)*[1,1],ylim,'Color','black','LineStyle','--');
+        line(velocity_chains{4,num_subplot}(2)*[1,1],ylim,'Color','black','LineStyle','--');
+        xlabel(['Elongation rate ',velocity_chains{2,num_subplot},' (kb/min)']);
+        title(['Mean: ',num2str(velocity_chains{3,num_subplot}),' (95% CI: [',num2str(velocity_chains{4,num_subplot}(1)),', ',num2str(velocity_chains{4,num_subplot}(2)),'])']);
+
+        subplot(size_rawchainplot,2,2*num_subplot + 2*sum(disp_default_chains))
+        plot(velocity_chains{1,num_subplot},'b.');
+        ylabel(['Elongation rate ',velocity_chains{2,num_subplot},' (kb/min)']);
+        end
+    end
+
 
     % User options (approve/reject, change nucleus)
     disp(t); %Display options
@@ -473,4 +564,62 @@ disp('Results saved.');
 
 close all;
 
+end
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Subfunctions
+
+function [leftValues,leftOptions, rightValues] = CheckboxDialog(velocity_names)
+    % Number of checkboxes in the right column
+    numRightCheckboxes = length(velocity_names);
+
+    % Create a list of permanent options
+    leftOptions = {'Termination dwell time', 'Mean initiation rate', 'Last initiation rate fluctuation', 'on-time';...
+                    'tau','R','dR','ton';...
+                    ' (min)',' (AU/min)',' (AU/min)', ' (min)'};
+
+    % Create a figure and panel within it
+    d = dialog('Units', 'normalized', 'Position',[0.2 0.2 0.15 0.15],'Name','Select 3 or 4 Parameters');
+
+    % Create checkboxes for the left column
+    leftValues = false(4,1);
+    for i = 1:4
+        uicontrol(d,'Style','checkbox','String',leftOptions{1,i},...
+                  'Units', 'normalized', 'Position',[0.1 0.8-(i-1)*0.2 0.4 0.15],...
+                  'HandleVisibility','off', 'Callback', {@leftCheckboxCallback, i});
+    end
+
+    % Create checkboxes for the right column
+    rightValues = false(numRightCheckboxes, 1);
+    for i = 1:numRightCheckboxes
+        uicontrol(d,'Style','checkbox','String',velocity_names{i},...
+                  'Units', 'normalized', 'Position',[0.6 0.8-(i-1)*0.2 0.4 0.15],...
+                  'HandleVisibility','off', 'Callback', {@rightCheckboxCallback, i});
+    end
+
+    % Create OK pushbutton
+    btn = uicontrol('Parent',d,...
+               'Units', 'normalized', 'Position',[0.3 0.05 0.4 0.2],...
+               'String','OK',...
+               'Callback',@buttonCallback);
+    uiwait(d); % Halt the execution until the dialog is deleted
+
+    function leftCheckboxCallback(hObject, eventdata, idx)
+        % Update the value of the checkbox
+        leftValues(idx) = hObject.Value;
+    end
+
+    function rightCheckboxCallback(hObject, eventdata, idx)
+        % Update the value of the checkbox
+        rightValues(idx) = hObject.Value;
+    end
+
+    function buttonCallback(hObject, eventdata)
+        % Delete the dialog
+        delete(d);
+    end
 end
