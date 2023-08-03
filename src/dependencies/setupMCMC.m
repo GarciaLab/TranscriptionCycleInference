@@ -1,4 +1,4 @@
-function [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t,ratePriorWidth,PriorTrunc,x_drop)
+function [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t,ratePriorWidth,PriorTrunc,x_stall)
 % setupMCMC fixes the parameters for inference, its priors, initial values of the MCMC chain and the covariance matrix of the proposal distribution of the MCMC.
 % params: input argument of mcmcrun, specifying the parameter names, its initial values and the marginal prior distributions
 % J0: covariance matrix of the proposal distribution
@@ -39,12 +39,14 @@ MCMC_initial.PP7_basal = 5;
 MCMC_initial.R = 15;
 MCMC_initial.dR = normrnd(0,3,1,length(t)); %The number of initiation fluctuation parameters equals the length of t_interp (sic!)
 
-%Initials for drop-off parameters
-if not(isempty(x_drop))
-    MCMC_initial.ProbDrop = 0.5; %Choose initial value to represent maximum ignorance about drop-off dynamics
-    MCMC_initial.tauDrop = 4*rand;
+%Initials for premature termination parameters
+if not(isempty(x_stall))
+    MCMC_initial.ProbPremTerm = 0.001; %Choose initial value, such that low probabilities are favored
+    %MCMC_initial.ProbPremTerm = 0.5; %Choose initial value to represent
+    %maximum ignorance about probability of premature termination
+    MCMC_initial.tauPremTerm = 4*rand;
 end
-sigma2_initial = 1; %Initial value of the MCMCchain for the error variance parameter s2 of the nonlinear Gaussian observation model
+sigma2_initial = 0.2; %Initial value of the MCMCchain for the error variance parameter s2 of the nonlinear Gaussian observation model
 
 %% Set step size (covariance matrix) of the MCMC proposal distribution.
 %Change these to change the proposal acceptance rate, or if the convergence
@@ -67,10 +69,10 @@ MCMC_step.PP7_basal = 1;
 MCMC_step.R = 0.5;
 MCMC_step.dR = 0.5*ones(size(MCMC_initial.dR));
 
-%Step size for drop-off parameters
-if not(isempty(x_drop))
-    MCMC_step.ProbDrop = 0.05;
-    MCMC_step.tauDrop = 0.1;
+%Step size for premature termination parameters
+if not(isempty(x_stall))
+    MCMC_step.ProbPremTerm = 0.05;
+    MCMC_step.tauPremTerm = 0.1;
 end
 
 %Feed initial step sizes into a (covariance) matrix (requirement of mcmcrun)
@@ -117,10 +119,10 @@ params{N_idx+4} = {'PP7_basal', MCMC_initial.PP7_basal, 0, 50};
 params{N_idx+5} = {'A', MCMC_initial.A, 0, 1};
 params{N_idx+6} = {'R', MCMC_initial.R, 0, 40};
 
-%Add drop-off parameters to params
-if not(isempty(x_drop))
-    params{N_idx+7} = {'ProbDrop', MCMC_initial.ProbDrop, 0, 1};
-    params{N_idx+8} = {'tauDrop', MCMC_initial.tauDrop, 0, 20};
+%Add premature termination parameters to params
+if not(isempty(x_stall))
+    params{N_idx+7} = {'ProbPremTerm', MCMC_initial.ProbPremTerm, 0, 1};
+    params{N_idx+8} = {'tauPremTerm', MCMC_initial.tauPremTerm, 0, 20};
 end
 
 %Set initial values and priors for initiation rate fluctuation parameters

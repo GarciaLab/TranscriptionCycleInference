@@ -37,16 +37,17 @@ function TranscriptionCycleMCMC(varargin)
 %   must be defined in the subfunction library.m (default uses the
 %   P2P-MS2-lacZ-PP7 construct from Liu et al)
 %
+%   Not yet implemented:
 %   'MonteCarlo', MonteCarlo: constructs can be defined to
-%   contain particular sites, where any polymerase can drop off the
-%   construct leading to premature termination. If MonteCarlo>0,
-%   then drop-off is modeled as a Bernoulli experiment for each polymerase
-%   and the likelihood function is approximated via Monte Carlo integration
-%   over the simulated fluorescence dynamics. It is recommendable to use
-%   MonteCarlo > 1000. If MonteCarlo==0, then the drop-off
+%   contain particular sites, where any polymerase can stall and
+%   prematurely terminate. If MonteCarlo>0, then premature termination is
+%   modeled as a Bernoulli experiment for each polymerase and the
+%   likelihood function is approximated via Monte Carlo integration over
+%   the simulated fluorescence dynamics. It is recommendable to use
+%   MonteCarlo > 1000. If MonteCarlo==0, then the premature termination
 %   dynamics is simulated as a deterministic reduction of polymerases at
-%   drop-off sites. (default = 0) %MG TODO: Consider stochastic simulation
-%   of the whole transcription dynamics (not just drop-off).
+%   stalling sites. (default = 0) %MG TODO: Consider stochastic simulation
+%   of the whole transcription dynamics (not just premature termination).
 
 %% 1) Variable inputs
 %Default settings
@@ -54,7 +55,7 @@ fileDir = pwd;
 saveLoc = pwd;
 numParPools = 8;
 n_burn = 30000;
-n_adapt = 200;
+n_adapt = 10000;
 n_steps = 100000;
 ratePriorWidth = 50;
 PriorTrunc = 30;
@@ -127,14 +128,19 @@ for i=1:length(varargin)
     end
 end
 
+%Error messages
+if n_adapt>n_burn
+    error('Too many adaptive steps. Use a value smaller than the number of burn-in steps.');
+end
+
 %% 2.1) Load construct details
 
 %Query to the construct library regarding the construct details:
 %'segments' and 'velocities' contain details about the elongation rates on
 %different segments of the construct and the length of the construct;
 %'stemloops' contain details about stem loop positions and contitutively bound fluorophores;
-%'x_drop' contains the positions of potential drop-off sites;
-[ElongationSegments,stemloops,x_drop] = library(construct);
+%'x_stall' contains the positions of stalling sites, where premature termination may happen upon stalling;
+[ElongationSegments,stemloops,x_stall] = library(construct);
 
 %Extract distinguishable names of velocity parameters
 velocity_names = unique(ElongationSegments.velocities);
@@ -148,14 +154,13 @@ data_all = LoadData(fileDir,loadPrevious);
 switch MonteCarlo
     case 0
         %Set log-likelihood (sum-of-squares residual function)
-        ssfun = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop);
+        ssfun = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_stall);
     otherwise
         %Set Monte Carlo approximation of the likelihood
-        error('Error: Drop off dynamics not yet implemented.');
+        error('Error: Monte Carlo option not yet implemented.');
         %ymodel = @(x,data) Likelihood(data,x,fixed_params) %MG: TODO
-        %simulator = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_drop,false);
-        %Or simulate MonteCarlo average: simulator = @(x,data)
-        %MonteCarloAverage(data,x,fixed_params) %MG: TODO
+        %simulator = @(x,data) getFluorescenceDynamicsSS(data,x,ElongationSegments,velocity_names,stemloops,x_stall);
+        %Or simulate MonteCarlo average: simulator = @(x,data)MonteCarloAverage(data,x,fixed_params) %MG: TODO
 end
 
 %% 3.1) Load each dataset and define export structures
@@ -173,7 +178,7 @@ for k = 1:length(data_all)
     N = length(Dataset.data); %Number of cells in dataset k
 
     %Setup empty structures to save data in (for each dataset!)
-    [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_drop);
+    [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_stall);
 
     %Get name of the dataset
     DatasetName = Dataset.data(1).name; %Assuming all the cells come from the same dataset
@@ -218,7 +223,7 @@ for k = 1:length(data_all)
 
         % Set 'params', the covariance matrix of the proposal distribution
         % 'J0' and the initial value 'sigma2_initial' of the observational parameter s2
-        [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t_interp,ratePriorWidth,PriorTrunc,x_drop);
+        [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t_interp,ratePriorWidth,PriorTrunc,x_stall);
 
         %Set 'model' (for mcmcrun)
         model = [];
@@ -230,7 +235,7 @@ for k = 1:length(data_all)
                 model.ssfun = ssfun;
                 model.sigma2 = sigma2_initial;
             otherwise
-                error('Error: Drop off dynamics not yet implemented.')
+                error('Error: Monte Carlo option not yet implemented.')
                 %model.modelfun = ymodel; %MG: TODO
         end
 
@@ -240,7 +245,7 @@ for k = 1:length(data_all)
         % follows. The length of the exported chain is n_step-n_burn.
         options = [];
         options.nsimu = n_steps; %Number of steps
-        options.updatesigma = 1; %s2 is not considered as fixed hyperparameter, but an actual parameter. The option sets the prior of s2 to be the conjugate prior (inverse gamma distribution parametrized as a scaled inverse chi^2 distribution with degree of freedom N0=1 and initial value of the cale parameter sigma2_initial)
+        options.updatesigma = 1; %s2 is not considered as fixed hyperparameter, but an actual parameter. The option sets the prior of s2 to be the conjugate prior (inverse gamma distribution parametrized as a scaled inverse chi^2 distribution with degree of freedom N0=1 and initial value of the scale parameter sigma2_initial)
         options.qcov = J0; %Initial covariance matrix of the proposal
         options.burnintime = n_burn; %Burn in time
         options.adaptint = n_adapt;
@@ -294,7 +299,7 @@ for k = 1:length(data_all)
         end
 
         %Simulated fluorescences of best fit (with posterior mean parameters)
-        [~,simMS2,simPP7] = getFluorescenceDynamicsSS(data,mean_params,ElongationSegments,velocity_names,stemloops,x_drop);
+        [~,simMS2,simPP7] = getFluorescenceDynamicsSS(data,mean_params,ElongationSegments,velocity_names,stemloops,x_stall);
 
         % Save data and best fit (from t_start to t_end) for plotting
         MCMCplot(cellNum).t_plot = t;
@@ -305,7 +310,7 @@ for k = 1:length(data_all)
     end %End of (paralellized) loop through cells
 
     %Add number of MonteCarlo samples if MonteCarlo-version was used
-    if and(MonteCarlo>0,not(isempty(x_drop)))
+    if and(MonteCarlo>0,not(isempty(x_stall)))
         for idx=1:N
             MCMCresults(idx).MonteCarlo = MonteCarlo;
         end

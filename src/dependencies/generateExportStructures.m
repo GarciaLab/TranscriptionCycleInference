@@ -1,4 +1,4 @@
-function [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_drop)
+function [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_stall)
 %generateExportStructures generates (a) lists of names and (b) structures
 %for saving the results of the MCMC analysis of N individual cells.
 %
@@ -9,13 +9,13 @@ function [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresult
 %MCMCresults: Empty (1xN) structure array with fields fields_MCMCresults
 %MCMCplot: Empty (1xN) structure array with fields 't_plot', 'MS2_plot', 'PP7_plot', 'simMS2', 'simPP7'
 
-%Generate list of parameters (either with or without drop-off)
-if isempty(x_drop)
+%Generate list of parameters (either with or without premature termination)
+if isempty(x_stall)
     params = [velocity_names,{'tau','ton','MS2_basal','PP7_basal','A','R','dR','s2'}];
 else
-    params = [velocity_names,{'tau','ton','MS2_basal','PP7_basal','A','R','ProbDrop','tauDrop','dR','s2'}];
-    %Add additional parameters 'ProbDrop' (drop-off probability) and
-    %'tauDrop' (drop-off (cleavage) time)
+    params = [velocity_names,{'tau','ton','MS2_basal','PP7_basal','A','R','ProbPremTerm','tauPremTerm','dR','s2'}];
+    %Add additional parameters 'ProbPremTerm' (probability of premature termination) and
+    %'tauPremTerm' (premature termination (cleavage) time)
 end
 
 % Generate all fields

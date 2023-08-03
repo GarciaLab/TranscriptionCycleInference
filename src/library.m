@@ -1,4 +1,4 @@
-function [ElongationSegments,stemloops,x_drop] = library(construct)
+function [ElongationSegments,stemloops,x_stall] = library(construct)
 % Construct library. Input: construct identifier string; Output: construct
 % hyperparameters
 
@@ -19,8 +19,8 @@ if strcmp(construct,'P2P-MS2v5-LacZ-PP7v4')
     MS2_loopn = 24; %Number of MS2 loops
     PP7_loopn = 24; %Number of PP7 loops
 
-    % Drop-off sites
-    x_drop = []; %No drop-off sites
+    % Stalling sites, where premature termination may occurr
+    x_stall = []; %No stalling sites, no premature termination
 
     % Number of consistently bound fluorophores during the whole observation time
     MS2_0 = 0;
@@ -41,8 +41,8 @@ elseif strcmp(construct,'test')
     MS2_loopn = 24; %Number of MS2 loops
     PP7_loopn = 24; %Number of PP7 loops
 
-    % Drop-off sites
-    x_drop = 2.900; % Sites, where drop-off (including stalling) is supposed to occur
+    % Stalling sites, where premature termination may occurr
+    x_stall = 2.900; % Sites, where premature termination (including stalling) is supposed to occur
 
     % Number of consistently bound fluorophores during the whole observation time
     MS2_0 = 0;
@@ -68,8 +68,8 @@ elseif strcmp(construct,'test')
     %    MS2_loopn = <NUMBER OF MS2 LOOPS>; %Number of MS2 loops (in general a vector)
     %    PP7_loopn = <NUMBER OF PP7 LOOPS>; %Number of PP7 loops (in general a vector)
     %
-    %    % Drop-off sites
-    %    x_drop = <VECTOR OF DROPOFF SITES>; % Sites, where drop-off (including stalling) is supposed to occur
+    %    % Stalling sites, where premature termination may occurr
+    %    x_stall = <VECTOR OF STALLING SITES>; % Sites, where premature termination (including stalling) is supposed to occur
 
     %  % Number of consistently bound fluorophores during the whole observation time
     %   MS2_0 = 0;

@@ -24,19 +24,19 @@ function ApproveMCMCResults(varargin)
 %   'InitiationFluctuations': option to simultaneously view the initiation
 %                             rate fluctuations 
 %   'SmoothRate': percentage of datapoints used for a smoothed plot of the
-%                           initiation rate fluctuations 
+%                 initiation rate fluctuations
+%   'LoadPrevious': import the results of a previous data curation
+%                   (ApprovedFits) and overwrite the respective structures
+%                   in the currently loaded dataset
+%
 %   'InitialRise': option to reduce import selection to files containing
 %                  "InitialRise" in their name
-%
 %   'MeanRate': option to reduce import selection to files containing
 %               "MeanRate" in their name (inhibits 'PolyRate' option)
 %   'PolyRate': option to reduce import selection to files containing
 %               "PolyRate" in their name
 %   'WholeCycle': option to reduce import selection to files containing
 %                 "Whole" in their name
-%   'LoadPrevious': import the results of a previous data curation
-%                   (ApprovedFits) and overwrite the respective structures
-%                   in the currently loaded dataset 
 %   'nc13': option to reduce import selection to files containing
 %           "nc13" in their name (inhibits 'nc14' option)
 %   'nc14': option to reduce import selection to files containing
