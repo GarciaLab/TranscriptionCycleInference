@@ -207,14 +207,13 @@ end
 
 %% Load construct details
 
-% Extract construct name from dataset (assuming that all cells in the set
-% are of the same kind)
-construct = MCMCresults(1).FittedConstruct;
+% Extract construct name from dataset
+construct = m.Metadata.FittedConstruct;
 
 %Query to the construct library regarding the construct details:
 %'segments' and 'velocities' contain details about the elongation rates on
 %different segments of the construct and the length of the construct
-[ElongationSegments,~,~] = library(construct);
+[ElongationSegments,~,x_stall] = library(construct);
 
 %Extract distinguishable names of velocity parameters
 velocity_names = unique(ElongationSegments.velocities);
@@ -225,7 +224,7 @@ velocity_fields_MCMCresults = [cellfun(@(x) strcat('mean_',x), velocity_names, '
 
 if RawChainsCheckbox
     % Select chains via dialog box
-    [disp_default_chains,defaultText,disp_velocity_chains] = CheckboxDialog(velocity_names);
+    [disp_default_chains,defaultText,disp_velocity_chains] = CheckboxDialog(velocity_names,x_stall);
     
     % Get number of chains to view
     size_rawchainplot = sum(disp_default_chains) + sum(disp_velocity_chains); %number of raw chains displayed (number of subplot rows)
@@ -573,17 +572,23 @@ end
 
 %% Subfunctions
 
-function [leftValues,leftOptions, rightValues] = CheckboxDialog(velocity_names)
+function [leftValues,leftOptions, rightValues] = CheckboxDialog(velocity_names,x_stall)
     % Number of checkboxes in the right column
     numRightCheckboxes = length(velocity_names);
 
     % Create a list of permanent options
+    if isempty(x_stall)
     leftOptions = {'Termination dwell time', 'Mean initiation rate', 'Last initiation rate fluctuation', 'on-time';...
                     'tau','R','dR','ton';...
                     ' (min)',' (AU/min)',' (AU/min)', ' (min)'};
+    else
+        leftOptions = {'Termination dwell time', 'Mean initiation rate', 'Last initiation rate fluctuation', 'on-time', 'stalling time', 'probability of premature termination';...
+                    'tau','R','dR','ton','tauPremTerm','ProbPremTerm';...
+                    ' (min)',' (AU/min)',' (AU/min)', ' (min)',' (min)',''};
+    end
 
     % Create a figure and panel within it
-    d = dialog('Units', 'normalized', 'Position',[0.2 0.2 0.15 0.15],'Name','Select 3 or 4 Parameters');
+    d = dialog('Units', 'normalized', 'Position',[0.2 0.2 0.15 0.2],'Name','Select 3 or 4 Parameters');
 
     % Create checkboxes for the left column
     leftValues = false(4,1);

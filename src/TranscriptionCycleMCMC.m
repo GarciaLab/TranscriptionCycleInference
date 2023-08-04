@@ -180,8 +180,16 @@ for k = 1:length(data_all)
     %Setup empty structures to save data in (for each dataset!)
     [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_stall);
 
-    %Get name of the dataset
-    DatasetName = Dataset.data(1).name; %Assuming all the cells come from the same dataset
+    %Get name of the metadata
+    Metadata.DatasetName = Dataset.data(1).name; %Assuming all the cells come from the same dataset
+    Metdadata.FittedConstruct = construct;
+    Metadata.ratePriorWidth = ratePriorWidth;
+    Metadata.PriorTrunc = PriorTrunc;
+    Metadata.t_start = t_start;
+    Metadata.t_end = t_end;
+    Metadata.BayesianCoverageCI = BayesianCoverage;
+    Metadata.AdaptiveSteps = n_adapt;
+    Metadata.BurnInSteps = n_burn;
 
     %% 3.2) MCMC analysis: Loop through single cells (paralellized)
 
@@ -253,7 +261,7 @@ for k = 1:length(data_all)
         options.verbosity = 0; %Decrease text output
 
         %Run the MCMC
-        [~,chain,s2chain] = mcmcrun(model,data,params,options);
+        [mcmcResult,chain,s2chain] = mcmcrun(model,data,params,options);
 
         %% 3.2.3) Extract and save results of MCMC for each single cell of the dataset
         % Save MCMC chains for individual parameters into the structure MCMCchain
@@ -263,13 +271,9 @@ for k = 1:length(data_all)
         MCMCchain(cellNum).dR_chain = chain(n_burn:end,length(fields_params):end);
         MCMCchain(cellNum).s2chain = s2chain;
 
-        %Save cell number and fitted construct
+        %Save cell number and data about the mcmc
         MCMCresults(cellNum).cell_index = cellNum;
-        MCMCresults(cellNum).FittedConstruct = construct;
-        MCMCresults(cellNum).BayesianCoverageCI = BayesianCoverage;
-        MCMCresults(cellNum).AdaptiveSteps = n_adapt;
-        MCMCresults(cellNum).ratePriorWidth = ratePriorWidth;
-        
+        MCMCresults(cellNum).mcmcrun = mcmcResult;
 
         %Save means of the resulting individual chains and equal-tailed 95%-credible
         %intervals
@@ -332,7 +336,7 @@ for k = 1:length(data_all)
     %Set paths for results (independent of operating system) and save
     %MCMC results and plots
     filename = [date,'-',DatasetName,'.mat'];
-    save(fullfile(saveLoc,filename),'MCMCresults','MCMCplot','DatasetName');
+    save(fullfile(saveLoc,filename),'MCMCresults','MCMCplot','Metadata');
 
     %MCMC raw chains
     filename = [date,'-',DatasetName,'_RawChain','.mat'];
