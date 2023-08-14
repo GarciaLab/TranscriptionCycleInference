@@ -163,6 +163,7 @@ N = length(m.MCMCplot); %Number of nuclei fits in this dataset
 %Extract the data into temporary variables.
 MCMCplot = m.MCMCplot;
 MCMCresults = m.MCMCresults;
+Metadata = m.Metadata;
 
 % In case of RawChain option, look for *_RawChain.mat file in fileDir and
 % fileDir/Raw Chains/. Otherwise open dialog box to choose the file.
@@ -208,7 +209,7 @@ end
 %% Load construct details
 
 % Extract construct name from dataset
-construct = m.Metadata.FittedConstruct;
+construct = Metadata.FittedConstruct;
 
 %Query to the construct library regarding the construct details:
 %'segments' and 'velocities' contain details about the elongation rates on

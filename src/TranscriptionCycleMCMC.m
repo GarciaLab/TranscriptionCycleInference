@@ -30,6 +30,8 @@ function TranscriptionCycleMCMC(varargin)
 %   the fitted parameter. Either set to value between 0 and 1, or use
 %   '1std', '2std' or '3std' to set to a multiple of the coverage of the
 %   standard deviation of a Gaussian
+%   'loadMCMCsetup', true/false: option to import refined initiation values
+%   and proposal parameters from previous MCMC results.
 %   'loadPrevious', true/false: option to load previous inference results
 %   to retain inferred elongation rate for hierarchical fit (see Liu et al,
 %   Section S3.2
@@ -62,6 +64,7 @@ PriorTrunc = 30;
 t_start = 0;
 t_end = Inf;
 BayesianCoverage = 0.95; % Set Bayesian coverage of credible intervals
+loadMCMCsetup = false;
 loadPrevious = false;
 construct = 'P2P-MS2v5-LacZ-PP7v4';
 MonteCarlo = 0;
@@ -117,6 +120,9 @@ for i=1:length(varargin)
             disp('Wrong input for Bayesian coverage. Set to default: 0.95');
         end
     end
+    if strcmpi(varargin{i},'loadMCMCsetup')
+        loadMCMCsetup = true;
+    end
     if strcmpi(varargin{i},'loadPrevious')
         loadPrevious = true;
     end
@@ -146,7 +152,7 @@ end
 velocity_names = unique(ElongationSegments.velocities);
 
 %% 2.2) Load data
-data_all = LoadData(fileDir,loadPrevious);
+data_all = LoadData(fileDir,loadPrevious,loadMCMCsetup,velocity_names,x_stall);
 
 %% 3) Data analysis and export
 
@@ -163,26 +169,42 @@ switch MonteCarlo
         %Or simulate MonteCarlo average: simulator = @(x,data)MonteCarloAverage(data,x,fixed_params) %MG: TODO
 end
 
-%% 3.1) Load each dataset and define export structures
+%% 3.1) Load each dataset and define export structures and save empty export structures
 
 %Loop through different datasets
 w = waitbar(0,'Analyzing datasets...'); %Start waitbar, showing the progress in terms of datasets
-for k = 1:length(data_all)
 
-    waitbar(k/length(data_all),w,['Analyzing dataset ',num2str(k),' of ',num2str(length(data_all))]); %Update waitbar
+% Start parallel cluster and create temporary mat-files for each worker (to
+% reduce the working memory for long mcmc chains)
+defaultCluster = parcluster(parallel.defaultClusterProfile); %Get default cluster profile
+maxWorkers = min(numParPools,defaultCluster.NumWorkers); % Use less or equal to numParPool workers (depending on availibility of workers)
+spmd (maxWorkers)
+    TempMatfileName = [tempname(saveLoc),'.mat']; % each worker gets a unique filename for its temporary mat-file
+    TempMatfile = matfile(TempMatfileName, 'Writable', true);
+end
+% Create a parallel pool constant from the composite TempMatfile. This
+% allows to use the same matfile with the same worker without the need
+% to repeatedly transfer it to the worker
+TempMatfileConstant = parallel.pool.Constant(TempMatfile);
+
+try
+for setNum = 1:length(data_all)
+
+    waitbar(setNum/length(data_all),w,['Analyzing dataset ',num2str(setNum),' of ',num2str(length(data_all))]); %Update waitbar
 
     %Save k-th dataset into variable to avoid unnecessary communication
     %overhead to the parfor (otherwise the whole structure array 'data_all' is sent to each worker, not just 'data_all(k)')
-    Dataset = data_all(k);
+    Dataset = data_all(setNum);
 
-    N = length(Dataset.data); %Number of cells in dataset k
+    N = length(Dataset.data); %Number of cells in dataset setNum
 
     %Setup empty structures to save data in (for each dataset!)
     [fields_params,fields_MCMCchain,fields_MCMCresults,MCMCchain,MCMCresults,MCMCplot] = generateExportStructures(N,velocity_names,x_stall);
 
-    %Get name of the metadata
-    Metadata.DatasetName = Dataset.data(1).name; %Assuming all the cells come from the same dataset
-    Metdadata.FittedConstruct = construct;
+    %Get metadata
+    DatasetName = Dataset.data(1).name; %Assuming all the cells come from the same dataset
+    Metadata.DatasetName = DatasetName;
+    Metadata.FittedConstruct = construct;
     Metadata.ratePriorWidth = ratePriorWidth;
     Metadata.PriorTrunc = PriorTrunc;
     Metadata.t_start = t_start;
@@ -190,11 +212,44 @@ for k = 1:length(data_all)
     Metadata.BayesianCoverageCI = BayesianCoverage;
     Metadata.AdaptiveSteps = n_adapt;
     Metadata.BurnInSteps = n_burn;
+    %Add number of MonteCarlo samples if MonteCarlo-version was used
+    if and(MonteCarlo>0,not(isempty(x_stall)))
+        Metadata.MonteCarlo = MonteCarlo;
+    end
+
+    % Save empty export structure for a single dataset into .mat structure
+    % (Set paths for results (independent of operating system) and save
+    % MCMC results and plots)
+    save_filename = fullfile(saveLoc,[date,'-',DatasetName,'.mat']);
+    save(save_filename,'MCMCresults','MCMCplot','Metadata','-v7.3'); %create a Version 7.3 MAT-file to enable/accelerate saving and loading parts of variables via matfile objects.
+
+    %MCMC raw chains
+    save_filename_chain = fullfile(saveLoc,[date,'-',DatasetName,'_RawChain','.mat']);
+    save(save_filename_chain,'MCMCchain','-v7.3'); %create a Version 7.3 MAT-file to enable/accelerate saving and loading parts of variables via matfile objects.
 
     %% 3.2) MCMC analysis: Loop through single cells (paralellized)
 
+    % Define a temporary .mat duplicate of the empty export structure for each
+    % parallel worker. Each worker will store mcmc results parallely into its own
+    % duplicate. Finally the parallely computed results will be stored in
+    % the export structures predefined above. Although this can increase
+    % the calculation time, it enables the parallel calculation of long
+    % MCMC chains. Otherwise the required working memory could be beyond capacity.
+    % spmd is an execution block where the enclosed code runs on all the
+    % available parallel workers.
+    spmd
+        % Seed the variables in the matfile object
+        TempMatfile.MCMCresults = cell(1,N);
+        TempMatfile.MCMCplot = cell(1,N);
+        TempMatfile.MCMCchain = cell(1,N);
+        TempMatfile.gotResult = false(1, N);
+    end
+
+    %Clear empty export structure variables
+    clear MCMCchain MCMCresults MCMCplot Metadata;
+
     %Do MCMC for each cell individually
-    parfor (cellNum = 1:N, numParPools)
+    parfor cellNum = 1:N
 
         %% 3.2.1) Load single cell data
         %Define time vector
@@ -231,7 +286,22 @@ for k = 1:length(data_all)
 
         % Set 'params', the covariance matrix of the proposal distribution
         % 'J0' and the initial value 'sigma2_initial' of the observational parameter s2
-        [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t_interp,ratePriorWidth,PriorTrunc,x_stall);
+        if loadMCMCsetup
+            [params,~,~] = setupMCMC(fields_params,velocity_names,loadPrevious,t_interp,ratePriorWidth,PriorTrunc,x_stall);
+            N_fields = length(fields_params)-1;
+            N_params = length(params);
+            for idxParam = 1:N_fields-1
+                params{idxParam}{2} = Dataset.setup.(fields_MCMCresults{idxParam}) ;
+            end
+            setup_dR = Dataset.setup.mean_dR;
+            for idxParam = 1:N_params-N_fields
+                params{N_fields+idxParam}{2} = setup_dR(idxParam) ;
+            end
+            J0 = Dataset.setup.qcov;
+            sigma2_initial = Dataset.setup.mean_sigma;
+        else
+            [params,J0,sigma2_initial] = setupMCMC(fields_params,velocity_names,loadPrevious,t_interp,ratePriorWidth,PriorTrunc,x_stall);
+        end
 
         %Set 'model' (for mcmcrun)
         model = [];
@@ -264,87 +334,99 @@ for k = 1:length(data_all)
         [mcmcResult,chain,s2chain] = mcmcrun(model,data,params,options);
 
         %% 3.2.3) Extract and save results of MCMC for each single cell of the dataset
-        % Save MCMC chains for individual parameters into the structure MCMCchain
-        for idx=1:(length(fields_params)-1)
-            MCMCchain(cellNum).(fields_MCMCchain{idx}) = chain(n_burn:end,idx);
+        if ~isempty(chain(n_burn:end,1)) % Check whether mcmcrun worked. If not, keep empty export structure for respective cell
+
+            %Create empty export structures for single cells as temporary
+            %variables (accessible only within a single iteration of the parfor loop)
+            tempOne = sign(cellNum); %Get a temporary 1
+            [~,~,~,localMCMCchain,localMCMCresults,localMCMCplot] = generateExportStructures(tempOne,velocity_names,x_stall);
+
+            %Save the chains, the means of the resulting individual chains
+            %and equal-tailed 95%-credible intervals
+            N_idx=length(fields_params)+1;
+            mean_params = zeros(1,N_idx-2); %Generate vector of mean parameters
+            lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
+            CredibleIntervals = quantile(chain(n_burn:end,:),[lower_quantile,upper_quantile]); %Get credible intervals
+
+            % Loop through individual parameters
+            for idx=1:(N_idx-2)
+                localMCMCchain.(fields_MCMCchain{idx}) = chain(n_burn:end,idx);%Extract chain after burn in
+                mean_params(idx) = mean(chain(n_burn:end,idx)); %Extract mean of chain after burn in
+                localMCMCresults.(fields_MCMCresults{idx}) = mean_params(idx); %Save posterior mean estimate of the parameter
+                localMCMCresults.(fields_MCMCresults{N_idx+idx}) = CredibleIntervals(:,idx); %Extract and save credible interval of the parameter
+            end
+
+            localMCMCchain.dR_chain = chain(n_burn:end,length(fields_params):end);
+            mean_dR = mean(chain(n_burn:end,length(fields_params):end));
+            localMCMCresults.mean_dR = mean_dR;
+            localMCMCresults.CI_dR = CredibleIntervals(:,length(fields_params):end); %Save credible intervals of initiation fluctuations
+            mean_params = [mean_params,mean_dR]; %Add initiation fluctuations to mean parameter vector (-> vector required for simulation of best fit)
+
+            localMCMCchain.s2chain = s2chain;
+            localMCMCresults.mean_sigma = sqrt(mean(s2chain(n_burn:end))); %square root of posterior mean of error variance s2
+            localMCMCresults.CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile]))'; %square root of credible interval of error variance s2
+
+            localMCMCresults.cell_index = cellNum; %cell number
+            localMCMCresults.mcmcrun = mcmcResult; %data about mcmc
+
+
+            %If using previous results, carry over approval/rejection
+            if loadPrevious
+                localMCMCresults.ApprovedFits = initialresults_all(setNum).MCMCresults(cellToload).ApprovedFits;
+            else
+                localMCMCresults.ApprovedFits = 0; %No approval/rejection by default
+            end
+
+            %Simulated fluorescences of best fit (with posterior mean parameters)
+            [~,simMS2,simPP7] = getFluorescenceDynamicsSS(data,mean_params,ElongationSegments,velocity_names,stemloops,x_stall);
+
+            % Save data and best fit (from t_start to t_end) for plotting
+            localMCMCplot.t_plot = t;
+            localMCMCplot.MS2_plot = MS2;
+            localMCMCplot.PP7_plot = PP7;
+            localMCMCplot.simMS2 = simMS2;
+            localMCMCplot.simPP7 = simPP7;
+
+            % Save all chains, results and plots into temporary .mat files.
+            % Afterwards the MCMC results of the particular cell are
+            % discarded from the working memory. This is particularly
+            % useful for a large number of long chains.
+            matfileObj = TempMatfileConstant.Value; % Access the actual matfile object 'TempMatfile' associated with the worker, where the loop iteration is currently running on.
+            matfileObj.MCMCchain(1,cellNum) = {localMCMCchain};
+            matfileObj.MCMCresults(1,cellNum) = {localMCMCresults};
+            matfileObj.MCMCplot(1,cellNum) = {localMCMCplot};
+            matfileObj.gotResult(1,cellNum) = true; % Report that results for this particular cellNum have been stored into this particular temporary .mat file
         end
-        MCMCchain(cellNum).dR_chain = chain(n_burn:end,length(fields_params):end);
-        MCMCchain(cellNum).s2chain = s2chain;
-
-        %Save cell number and data about the mcmc
-        MCMCresults(cellNum).cell_index = cellNum;
-        MCMCresults(cellNum).mcmcrun = mcmcResult;
-
-        %Save means of the resulting individual chains and equal-tailed 95%-credible
-        %intervals
-        N_idx=length(fields_params)+1;
-        mean_params = zeros(1,N_idx-2); %Generate vector of mean parameters
-
-        lower_quantile = (1 - BayesianCoverage)/2; upper_quantile = 1 - lower_quantile; % Set quantiles
-        CredibleIntervals = quantile(chain(n_burn:end,:),[lower_quantile,upper_quantile]); %Get credible intervals
-        for idx=1:N_idx-2
-            mean_params(idx) = mean(MCMCchain(cellNum).(fields_MCMCchain{idx}));
-            MCMCresults(cellNum).(fields_MCMCresults{idx}) = mean_params(idx); %Extract and save posterior mean of the parameter
-            MCMCresults(cellNum).(fields_MCMCresults{N_idx+idx}) = CredibleIntervals(:,idx); %Extract and save credible interval of the parameter
-        end
-        MCMCresults(cellNum).mean_dR = mean(MCMCchain(cellNum).dR_chain);
-        mean_params = [mean_params,MCMCresults(cellNum).mean_dR]; %Add initiation fluctuations to mean parameter vector
-        MCMCresults(cellNum).CI_dR = CredibleIntervals(:,length(fields_params):end); %Save credible intervals of initiation fluctuations
-        MCMCresults(cellNum).mean_sigma = sqrt(mean(s2chain(n_burn:end))); %square root of posterior mean of error variance s2
-        MCMCresults(cellNum).CI_sigma = sqrt(quantile(s2chain(n_burn:end),[lower_quantile,upper_quantile]))'; %square root of credible interval of error variance s2
-
-
-
-        %If using previous results, carry over approval/rejection
-        if loadPrevious
-            MCMCresults(cellNum).ApprovedFits = initialresults_all(k).MCMCresults(cellToload).ApprovedFits;
-        else
-            MCMCresults(cellNum).ApprovedFits = 0; %No approval/rejection by default
-        end
-
-        %Simulated fluorescences of best fit (with posterior mean parameters)
-        [~,simMS2,simPP7] = getFluorescenceDynamicsSS(data,mean_params,ElongationSegments,velocity_names,stemloops,x_stall);
-
-        % Save data and best fit (from t_start to t_end) for plotting
-        MCMCplot(cellNum).t_plot = t;
-        MCMCplot(cellNum).MS2_plot = MS2;
-        MCMCplot(cellNum).PP7_plot = PP7;
-        MCMCplot(cellNum).simMS2 = simMS2;
-        MCMCplot(cellNum).simPP7 = simPP7;
     end %End of (paralellized) loop through cells
 
-    %Add number of MonteCarlo samples if MonteCarlo-version was used
-    if and(MonteCarlo>0,not(isempty(x_stall)))
-        for idx=1:N
-            MCMCresults(idx).MonteCarlo = MonteCarlo;
+    % Get matfile objects for the final export MAT-files
+    m = matfile(save_filename, 'Writable', true);
+    mCHAIN =  matfile(save_filename_chain, 'Writable', true);
+
+    % Sequentially transfer results from temporary MAT-files to final
+    % MAT-files (cell by cell)
+    for worker_idx = 1: numel(TempMatfileName)
+        workerTempMatfileName = TempMatfileName{worker_idx};
+        workerTempMatfile = matfile(workerTempMatfileName);
+        for cellNum = 1:N
+            if workerTempMatfile.gotResult(1,cellNum)
+                localCHAINS = workerTempMatfile.MCMCchain(1,cellNum);
+                mCHAIN.MCMCchain(1,cellNum) = localCHAINS{1};
+                localRESULTS = workerTempMatfile.MCMCresults(1,cellNum);
+                m.MCMCresults(1,cellNum) = localRESULTS{1};
+                localPLOT = workerTempMatfile.MCMCplot(1,cellNum);
+                m.MCMCplot(1,cellNum) = localPLOT{1};
+            end
         end
     end
-
-    %% 4.1) Postprocessing: reject empty particle results, save dataset info
-    remove_indices = false(1,length(MCMCchain));
-    for cellNum = 1:length(MCMCchain)
-        if isempty(MCMCchain(cellNum).R_chain)
-            remove_indices(cellNum) = true;
-        end
-    end
-
-    MCMCchain(remove_indices) = [];
-    MCMCresults(remove_indices) = [];
-    MCMCplot(remove_indices) = [];
-
-    %% 4.2) Save results for a single dataset into .mat structure
-    %Set paths for results (independent of operating system) and save
-    %MCMC results and plots
-    filename = [date,'-',DatasetName,'.mat'];
-    save(fullfile(saveLoc,filename),'MCMCresults','MCMCplot','Metadata');
-
-    %MCMC raw chains
-    filename = [date,'-',DatasetName,'_RawChain','.mat'];
-    save(fullfile(saveLoc,filename),'MCMCchain');
 end %End of loop through datasets
+end %End of try
 
-close(w);
+% Delete the temporary MAT-files after using them
+for worker_idx = 1: numel(TempMatfileName)
+    delete(TempMatfileName{worker_idx});
+end
+close(w); % Close waitbar
 
 disp(['MCMC analysis complete. Information stored in: ',saveLoc]);
-
 end

@@ -46,7 +46,7 @@ if not(isempty(x_stall))
     %maximum ignorance about probability of premature termination
     MCMC_initial.tauPremTerm = 4*rand;
 end
-sigma2_initial = 0.2; %Initial value of the MCMCchain for the error variance parameter s2 of the nonlinear Gaussian observation model
+sigma2_initial = 1; %Initial value of the MCMCchain for the error variance parameter s2 of the nonlinear Gaussian observation model
 
 %% Set step size (covariance matrix) of the MCMC proposal distribution.
 %Change these to change the proposal acceptance rate, or if the convergence

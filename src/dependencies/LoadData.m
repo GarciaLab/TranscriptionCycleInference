@@ -1,10 +1,11 @@
-function data_all=LoadData(fileDir,loadPrevious)
+function data_all=LoadData(fileDir,loadPrevious,loadMCMCsetup,velocity_names,x_stall)
 %LoadData loads data for all operating systems. Directory names
 %automatically contain "\" for WINDOWS and "/" for OS,LINUX.
+%
 % If loadPrevious=true, then the function loads previously processed data
 % from dataset files containing 'InitialRise' in their name and
 % corresponding dataset files from a fixed location.
-% 
+%
 % The structures in the InitialRise datasets need to contain the variables
 % 'Prefix' and 'MCMCResults'. The variable 'MCMCResults' is a structure
 % array containing the fields 'mean_v', 'cell_index' and 'ApprovedFits'.
@@ -64,15 +65,41 @@ if loadPrevious
         temp.nc13 = dat.nc13;
         temp.nc14 = dat.nc14;
         temp.TwoColorFilteredParticles = dat.TwoColorFilteredParticles;
-        
+
         % Store temp in data_all(i)
         data_all(i) = temp;
+    end
+elseif loadMCMCsetup
+    %Choose which dataset to infer results for.
+    files = dir(fullfile(fileDir,'*.mat'));
+    names = {files.name};
+
+    %Choose MCMC results from where to import MCMC setup
+    [s,~] = listdlg('PromptString','Select previous MCMC results:','SelectionMode',...
+        'multiple','ListString',names);
+
+    %Load the data from MCMCplot and the setup from MCMCresults
+    data_all = struct('data',{},'setup',{});
+    for i = 1:length(s)
+        filename_dat = fullfile(files(s(i)).folder,names{s(i)});
+        dat = load(filename_dat);
+        [fields_params,~,fields_MCMCresults] = generateExportStructures(length(dat.MCMCplot),velocity_names,x_stall);
+        for cellNum=1:length(dat.MCMCplot)
+            data_all(i).data(cellNum).name = dat.Metadata.DatasetName;
+            data_all(i).data(cellNum).time = dat.MCMCplot(cellNum).t_plot;
+            data_all(i).data(cellNum).MS2 = dat.MCMCplot(cellNum).MS2_plot;
+            data_all(i).data(cellNum).PP7 = dat.MCMCplot(cellNum).PP7_plot;
+            data_all(i).setup(cellNum).qcov = dat.MCMCresults(cellNum).mcmcrun.qcov;
+            for idxParam = 1:length(fields_params)+1
+                data_all(i).setup(cellNum).(fields_MCMCresults{idxParam}) = dat.MCMCresults(cellNum).(fields_MCMCresults{idxParam});
+            end
+        end
     end
 else
     %Otherwise, choose which dataset to infer results for.
     files = dir(fullfile(fileDir,'*.mat'));
     names = {files.name};
-    
+
     % Open a dialog box to manually select from the file list
     [s,~] = listdlg('PromptString','Select a dataset:','SelectionMode',...
         'multiple','ListString',names); %s is the indices of the chosen datasets
